@@ -1,14 +1,14 @@
 
 class Segmento(object):
-    def __init__(self, imagenID, segmentoID, centroide, punto, distancia):
-        self.imagenID = imagenID
+    def __init__(self, contornoID, segmentoID, centroide, punto, distancia):
+        self.contornoID = contornoID
         self.segmentoID = segmentoID
         self.centroide = centroide
         self.punto = punto
         self.distancia = distancia
 
-    def imagenID(self):
-        return self.imagenID
+    def contornoID(self):
+        return self.contornoID
 
     def segmentoID(self):
         return self.segmentoID
@@ -19,5 +19,5 @@ class Segmento(object):
     def punto(self):
         return self.punto
 
-    def distanci(self):
+    def distancia(self):
         return self.distancia

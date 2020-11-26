@@ -1,4 +1,4 @@
-from Segmentacion import *
+from Segmentation import *
 import cv2
 
 def mostrarSegmentosPorImagenID(segmentos, imagenID):
@@ -38,11 +38,12 @@ def calcularDiferenciaDistancia(segmentos, segmentoID):
             distancia1 = segmento1.distancia
             distancia2 = segmento2.distancia
             print("diferenciaDistancia:"+ str(segmento1.imagenID)+ " - "+ str(segmento2.imagenID))
-            print(distancia2-distancia1)
+            distancia = distancia2-distancia1
+            print(distancia)
         i = i +1
 
 if __name__ == '__main__':
-    segmentacion = Segmentacion()
+    segmentacion = Segmentation()
     contador = 0
     segmentos = []
     cap = cv2.VideoCapture('video.mp4')
