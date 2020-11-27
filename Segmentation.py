@@ -234,11 +234,9 @@ class Segmentation(object):
             segment2 = segmentsList[i + 1]
             d1 = segment1.distancia
             d2 = segment2.distancia
-            t1 = segment1.contornoID
-            t2 = segment2.contornoID
             v = 0
             dX = d2 - d1
-            dT = t2 - t1
+            dT = segment1.contornoID + 1
             if dT != 0:
                 v = dX / dT
             speedList.append(v)
