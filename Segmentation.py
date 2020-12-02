@@ -4,8 +4,9 @@ import math
 from shapely.wkt import loads
 from shapely.geometry.point import Point
 from shapely.geometry import MultiPolygon, Polygon
-from Segmento import Segmento
+from segmento import Segmento
 import random
+from ray import Ray
 
 class Segmentation(object):
     def __init__(self):
@@ -43,8 +44,8 @@ class Segmentation(object):
             lastContour = []
             lastContour.append(res)
             lines = self.generateRays(centroid, lastContour, numberRays)
-            for i,polygon in enumerate(polygons):
-                self.calculateIntersection(i, polygon, lines,centroid)
+            '''for i,polygon in enumerate(polygons):
+                self.calculateIntersection(i, polygon, lines,centroid)'''
 
             speeds = self.calcularVelocidadRayos(numberRays)
             variations = self.calcularVariacionDistanciaRayos(numberRays)
@@ -114,13 +115,17 @@ class Segmentation(object):
         coords.append(subwest)
         coords.append(west)
         coords.append(northwest)
+        self.writeImage("N", north[0],north[1])
+        self.writeImage("S", sub[0],sub[1])
+        self.writeImage("E", east[0],east[1])
+        self.writeImage("O", west[0],west[1])
         if numL <= 8:
-            spaceWork = coords[:numL]
-            self.traceRays(self.image,centroid,spaceWork)
+            pointsDirection = coords[:numL]
         else:
-            spaceWork = self.calculateMidlepoints(coords, numL-len(coords))
-            self.traceRays(self.image,centroid,spaceWork)
-        multiline = self.buildMultilineShapely(centroid,spaceWork)
+            pointsDirection = self.calculateMidlepoints(coords, numL-len(coords))
+        self.traceRays(self.image, centroid, pointsDirection)
+        self.createRays(centroid,pointsDirection)
+        multiline = self.buildMultilineShapely(centroid,pointsDirection)
         return multiline
 
     def buildMultilineShapely(self, centroid, spaceWork):
@@ -133,6 +138,11 @@ class Segmentation(object):
                 lineString = lineString + lineShape + ")"
         line = loads(lineString)
         return line
+
+    def createRays(self, centroid, pointsDirection):
+        for i, p in enumerate (pointsDirection):
+            ray = Ray(i, centroid, p)
+
 
     def calculateMidlepoints(self, listaCoords, num):
         counter = num
@@ -213,14 +223,14 @@ class Segmentation(object):
                     cv2.circle(self.image, (int(shp.x), int(shp.y)), 2, self.yellowColor, 2)
                     distance = self.calculateDistanceBetweenTwoPoints(centroid[0], centroid[1], shp.x, shp.y)
                     segment = Segmento(contornoID, i, centroid, (shp.x,shp.y), distance)
-                    self.writeImage(str(i),int(shp.x),int(shp.y))
+                    #self.writeImage(str(i),int(shp.x),int(shp.y))
                     self.segments.append(segment)
                 else:
                     x,y = shp.xy
                     cv2.circle(self.image, (int(x[0]), int(y[0])), 2, self.yellowColor, 2)
                     distance = self.calculateDistanceBetweenTwoPoints(centroid[0], centroid[1], x[0], y[0])
                     segment = Segmento(contornoID,i, centroid, (x[0], y[0]), distance)
-                    self.writeImage(str(i), int(x[0]), int(y[0]))
+                    #self.writeImage(str(i), int(x[0]), int(y[0]))
                     self.segments.append(segment)
         else:
             print(intersection)

@@ -2,8 +2,8 @@ from Segmentation import *
 
 if __name__ == '__main__':
     segment = Segmentation()
-    numberRays = 9
-    numberContours = 2
+    numberRays = 100
+    numberContours = 1
     segment.segmentImage(numberRays,numberContours)
 
     list = segment.obtenerSegmentosPorID(0)
