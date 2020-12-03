@@ -1,5 +1,5 @@
-from shapely.geometry.point import Point
-from shapely.geometry import LineString
+from shapely.geometry import Point, MultiPoint
+from shapely.geometry import LineString, MultiLineString
 from Intersection import Intersection
 
 class Ray(object):
@@ -18,9 +18,35 @@ class Ray(object):
         return lineString
 
     def intersect(self, polygon, id):
-        point = polygon.exterior.intersection(self.toShapelyLine())
-        intersection = Intersection(id, point)
-        self.intersectionList.append(intersection)
+        intersectionShape = polygon.exterior.intersection(self.toShapelyLine())
+        print("Intersect Method")
+        print(type(intersectionShape))
+        print(intersectionShape)
+        if isinstance(intersectionShape, Point):
+            intersection = Intersection(id, intersectionShape)
+            self.intersectionList.append(intersection)
+        if isinstance(intersectionShape, MultiLineString):
+            print("Not Point")
+            for line in intersectionShape:
+                x, y = line.xy
+                point1 = Point(x[0],y[0])
+                point2 = Point(x[1],y[1])
+                intersection1 = Intersection(id, point1)
+                intersection2 = Intersection(id, point2)
+                self.intersectionList.append(intersection1)
+                self.intersectionList.append(intersection2)
+                print(point1)
+                print(point2)
+            print("---------------")
+        if isinstance(intersectionShape, MultiPoint):
+            print("Not Point")
+            for line in intersectionShape:
+                x, y = line.xy
+                point = Point(x[0],y[0])
+                intersection = Intersection(id, point)
+                self.intersectionList.append(intersection)
+                print(point)
+                print("---------------")
         return self.intersectionList
 
 

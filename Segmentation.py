@@ -43,31 +43,11 @@ class Segmentation(object):
             polygons, res = self.generatePolygonList(numberContours,contours)
             lastContour = []
             lastContour.append(res)
+
+
             lines = self.generateRays(centroid, lastContour, numberRays)
             intersections = self.intersectPolygons(polygons,lines)
-            for list in intersections:
-                for intersection in list:
-                    point = intersection.intersectionPoint
-                    print(point)
-                    if isinstance(point,Point):
-                        x = point.x
-                        y = point.y
-                        cv2.circle(self.image, (int(x), int(y)), 2, self.yellowColor, 2)
-                    if isinstance(point,MultiPoint):
-                        for p in point:
-                            x, y = p.xy
-                            print("MultiPoint")
-                            print(x)
-                            print(y)
-                            cv2.circle(self.image, (int(x[0]), int(y[0])), 2, self.yellowColor, 2)
-                    if isinstance(point,MultiLineString):
-                        for p in point:
-                            x, y = p.xy
-                            print("MultiLineString")
-                            print(x)
-                            print(y)
-                            cv2.circle(self.image, (int(x[0]), int(y[0])), 2, self.yellowColor, 2)
-
+            self.drawPoints(intersections)
             speeds = self.calcularVelocidadRayos(numberRays)
             variations = self.calcularVariacionDistanciaRayos(numberRays)
 
@@ -166,6 +146,32 @@ class Segmentation(object):
             ray = Ray(i, centroid, point)
             rays.append(ray)
         return rays
+
+    def drawPoints(self,intersections):
+        for list in intersections:
+            for intersection in list:
+                point = intersection.intersectionPoint
+                print(point)
+                if isinstance(point, Point):
+                    x = point.x
+                    y = point.y
+                    cv2.circle(self.image, (int(x), int(y)), 2, self.yellowColor, 2)
+                '''
+                if isinstance(point, MultiPoint):
+                    for p in point:
+                        x, y = p.xy
+                        print("MultiPoint")
+                        print(x)
+                        print(y)
+                        cv2.circle(self.image, (int(x[0]), int(y[0])), 2, self.yellowColor, 2)
+                if isinstance(point, MultiLineString):
+                    for p in point:
+                        x, y = p.xy
+                        print("MultiLineString")
+                        print(x)
+                        print(y)
+                        cv2.circle(self.image, (int(x[0]), int(y[0])), 2, self.yellowColor, 2)
+                '''
 
     def intersectPolygons(self,polygons,rays):
         listIntersections = []
