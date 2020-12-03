@@ -31,10 +31,15 @@ class Ray(object):
                 x, y = line.xy
                 point1 = Point(x[0],y[0])
                 point2 = Point(x[1],y[1])
-                intersection1 = Intersection(id, point1)
-                intersection2 = Intersection(id, point2)
-                self.intersectionList.append(intersection1)
-                self.intersectionList.append(intersection2)
+                if point1.distance(point2) <= 4.0:
+                    print("Distancia insignificante")
+                    intersection1 = Intersection(id, point1)
+                    self.intersectionList.append(intersection1)
+                else:
+                    intersection1 = Intersection(id, point1)
+                    intersection2 = Intersection(id, point2)
+                    self.intersectionList.append(intersection1)
+                    self.intersectionList.append(intersection2)
                 print(point1)
                 print(point2)
             print("---------------")

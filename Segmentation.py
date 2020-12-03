@@ -44,9 +44,8 @@ class Segmentation(object):
             lastContour = []
             lastContour.append(res)
 
-
-            lines = self.generateRays(centroid, lastContour, numberRays)
-            intersections = self.intersectPolygons(polygons,lines)
+            raysList = self.generateRays(centroid, lastContour, numberRays)
+            intersections = self.intersectPolygons(polygons,raysList)
             self.drawPoints(intersections)
             speeds = self.calcularVelocidadRayos(numberRays)
             variations = self.calcularVariacionDistanciaRayos(numberRays)
