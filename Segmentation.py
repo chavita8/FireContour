@@ -3,7 +3,7 @@ import numpy as np
 import math
 from shapely.wkt import loads
 from shapely.geometry.point import Point
-from shapely.geometry import MultiPolygon, Polygon
+from shapely.geometry import MultiPolygon, Polygon, MultiPoint, MultiLineString
 from segmento import Segmento
 import random
 from ray import Ray
@@ -36,7 +36,7 @@ class Segmentation(object):
             cv2.imwrite("GreenMask.png", greenImage)
             cannyImageRed = cv2.Canny(imageRedYellow, 127, 255)
             cv2.imwrite("RedCanny.png", cannyImageRed)
-            _,contours,_ = cv2.findContours(cannyImageRed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            contours,_ = cv2.findContours(cannyImageRed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
             centroid = self.findCentroid(contours[0])
             cv2.circle(self.image, centroid, 3, self.pinkColor, 3)
 
@@ -44,8 +44,29 @@ class Segmentation(object):
             lastContour = []
             lastContour.append(res)
             lines = self.generateRays(centroid, lastContour, numberRays)
-            '''for i,polygon in enumerate(polygons):
-                self.calculateIntersection(i, polygon, lines,centroid)'''
+            intersections = self.intersectPolygons(polygons,lines)
+            for list in intersections:
+                for intersection in list:
+                    point = intersection.intersectionPoint
+                    print(point)
+                    if isinstance(point,Point):
+                        x = point.x
+                        y = point.y
+                        cv2.circle(self.image, (int(x), int(y)), 2, self.yellowColor, 2)
+                    if isinstance(point,MultiPoint):
+                        for p in point:
+                            x, y = p.xy
+                            print("MultiPoint")
+                            print(x)
+                            print(y)
+                            cv2.circle(self.image, (int(x[0]), int(y[0])), 2, self.yellowColor, 2)
+                    if isinstance(point,MultiLineString):
+                        for p in point:
+                            x, y = p.xy
+                            print("MultiLineString")
+                            print(x)
+                            print(y)
+                            cv2.circle(self.image, (int(x[0]), int(y[0])), 2, self.yellowColor, 2)
 
             speeds = self.calcularVelocidadRayos(numberRays)
             variations = self.calcularVariacionDistanciaRayos(numberRays)
@@ -124,9 +145,9 @@ class Segmentation(object):
         else:
             pointsDirection = self.calculateMidlepoints(coords, numL-len(coords))
         self.traceRays(self.image, centroid, pointsDirection)
-        self.createRays(centroid,pointsDirection)
-        multiline = self.buildMultilineShapely(centroid,pointsDirection)
-        return multiline
+        rays = self.createRays(centroid,pointsDirection)
+        #multiline = self.buildMultilineShapely(centroid,pointsDirection)
+        return rays
 
     def buildMultilineShapely(self, centroid, spaceWork):
         lineString = "MULTILINESTRING ("
@@ -140,9 +161,19 @@ class Segmentation(object):
         return line
 
     def createRays(self, centroid, pointsDirection):
-        for i, p in enumerate (pointsDirection):
-            ray = Ray(i, centroid, p)
+        rays = []
+        for i, point in enumerate (pointsDirection):
+            ray = Ray(i, centroid, point)
+            rays.append(ray)
+        return rays
 
+    def intersectPolygons(self,polygons,rays):
+        listIntersections = []
+        for i,polygon in enumerate(polygons):
+            for ray in rays:
+                intersection = ray.intersect(polygon,i)
+                listIntersections.append(intersection)
+        return listIntersections
 
     def calculateMidlepoints(self, listaCoords, num):
         counter = num
