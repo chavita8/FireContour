@@ -1,4 +1,4 @@
-from Segmentation import *
+from segmentation import *
 import cv2
 
 def mostrarSegmentosPorImagenID(segmentos, imagenID):

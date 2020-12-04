@@ -5,6 +5,7 @@ from shapely.wkt import loads
 from shapely.geometry.point import Point
 from shapely.geometry import MultiPolygon, Polygon, MultiPoint, MultiLineString
 from segmento import Segmento
+from contour import Contour
 import random
 from ray import Ray
 
@@ -16,6 +17,7 @@ class Segmentation(object):
         self.redColor = (0, 0, 255)
         self.yellowColor = (0, 255, 255)
         self.pinkColor = (255, 255, 0)
+        self.nColor = (255, 0, 255)
         self.centroidList = []
         self.invariantsHuMoments = []
         self.invariantsSiftPoints = []
@@ -36,17 +38,18 @@ class Segmentation(object):
             cv2.imwrite("GreenMask.png", greenImage)
             cannyImageRed = cv2.Canny(imageRedYellow, 127, 255)
             cv2.imwrite("RedCanny.png", cannyImageRed)
-            contours,_ = cv2.findContours(cannyImageRed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            _,contours,_ = cv2.findContours(cannyImageRed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
             centroid = self.findCentroid(contours[0])
             cv2.circle(self.image, centroid, 3, self.pinkColor, 3)
 
-            polygons, res = self.generatePolygonList(numberContours,contours)
+            polygons, res = self.generatePolygons(numberContours,contours)
             lastContour = []
             lastContour.append(res)
 
             raysList = self.generateRays(centroid, lastContour, numberRays)
             intersections = self.intersectPolygons(polygons,raysList)
             self.drawPoints(intersections)
+            self.showRays(raysList)
             speeds = self.calcularVelocidadRayos(numberRays)
             variations = self.calcularVariacionDistanciaRayos(numberRays)
 
@@ -56,13 +59,33 @@ class Segmentation(object):
         else:
             print("error loading image")
 
-    def generatePolygonList(self, numC, contour):
+    def showRays(self, raysList):
+        dict = {}
+        for ray in raysList:
+            print("RayId")
+            print(ray.rayId)
+            intersectionList = ray.intersectionList
+            pointList = []
+            for i in intersectionList:
+                print("ContourId")
+                print(i.contourId)
+                print(i.intersectionPoint)
+                point = (i.intersectionPoint.x,i.intersectionPoint.y)
+                pointList.append(point)
+            dict[ray.rayId] = pointList
+        print(dict)
+
+    def generatePolygons(self, numC, contour):
         listPolygonsShapely = []
-        res, lists = self.generatePolygons(numC,contour[0],[])
-        cv2.drawContours(self.image, lists, -1, self.blueColor, 3)
-        for list in lists:
+        res, contoursList = self.generateContours(numC,contour[0],[])
+        largestContour = self.largestContour(contoursList)
+        #cv2.drawContours(self.image, lists, -1, self.blueColor, 3)
+        for contourObj in contoursList:
+            cnt = contourObj.contour
+            color = contourObj.color
+            cv2.drawContours(self.image, cnt, -1, color, 3)
             polygon = []
-            array = list
+            array = cnt
             startingPoint = (array[0][0][0], array[0][0][1])
             for pointArray in array:
                 tupla = (pointArray[0][0], pointArray[0][1])
@@ -71,28 +94,53 @@ class Segmentation(object):
             poligonoShapely = Polygon(polygon)
             listPolygonsShapely.append(poligonoShapely)
         multiPolygon = MultiPolygon(listPolygonsShapely)
-        return (multiPolygon, res)
+        return (multiPolygon, largestContour.contour)
 
-    def generatePolygons(self, numC, contour, list):
-        res = []
-        rango = np.arange(1,2.1,0.1)
+    def largestContour(self,contoursList):
+        largest = None
+        maximunArea = -1
+        for contour in contoursList:
+            area = contour.contourArea()
+            if area > maximunArea:
+                largest = contour
+                maximunArea = area
+        return largest
+
+    def generateContours(self, numC, contour, list):
         if numC == 1:
-            res = contour
-            list.append(res)
+            lastContour = Contour(contour, self.blueColor, "first")
+            list.append(lastContour)
         else:
-            res, list = self.generatePolygons(numC-1,contour,list)
-            x = random.uniform(1.1, 1.6)
-            new = self.scaleContour(res,x)
-            res = new
-            list.append(res)
-        return (res,list)
+            lastContour, list = self.generateContours(numC-1,contour,list)
+            scaleIncrease = random.uniform(1.1, 1.6)
+            scaleDecrease = random.uniform(1.1, 1.3)
+            operator = random.randint(0,3)
+            print("OPERATOR")
+            print(operator)
+            if operator == 1:
+                newSize = self.scaleContour(lastContour.contour,scaleDecrease,operator)
+                contourObject = Contour(newSize, self.nColor, "decrease")
+                print("SCALE DECREASE")
+                print(scaleDecrease)
+            else:
+                newSize = self.scaleContour(lastContour.contour, scaleIncrease)
+                contourObject = Contour(newSize, self.blueColor, "increase")
+                print("SCALE INCREASE")
+                print(scaleIncrease)
+            #lastContour = newSize
+            lastContour = contourObject
+            list.append(lastContour)
+        return (lastContour,list)
 
-    def scaleContour(self, contour, scale):
+    def scaleContour(self, contour, scale, decrease=None):
         M = cv2.moments(contour)
         cx = int(M['m10']/M['m00'])
         cy = int(M['m01']/M['m00'])
         contourNorm = contour - [cx, cy]
-        contourScaled = contourNorm * scale
+        if decrease == None:
+            contourScaled = contourNorm * scale
+        else:
+            contourScaled = contourNorm / scale
         contourScaled = contourScaled + [cx, cy]
         contourScaled = contourScaled.astype(np.int32)
         return contourScaled
@@ -150,27 +198,10 @@ class Segmentation(object):
         for list in intersections:
             for intersection in list:
                 point = intersection.intersectionPoint
-                print(point)
                 if isinstance(point, Point):
                     x = point.x
                     y = point.y
                     cv2.circle(self.image, (int(x), int(y)), 2, self.yellowColor, 2)
-                '''
-                if isinstance(point, MultiPoint):
-                    for p in point:
-                        x, y = p.xy
-                        print("MultiPoint")
-                        print(x)
-                        print(y)
-                        cv2.circle(self.image, (int(x[0]), int(y[0])), 2, self.yellowColor, 2)
-                if isinstance(point, MultiLineString):
-                    for p in point:
-                        x, y = p.xy
-                        print("MultiLineString")
-                        print(x)
-                        print(y)
-                        cv2.circle(self.image, (int(x[0]), int(y[0])), 2, self.yellowColor, 2)
-                '''
 
     def intersectPolygons(self,polygons,rays):
         listIntersections = []

@@ -4,3 +4,4 @@ class Intersection(object):
         self.contourId = contourId
         self.intersectionPoint = intersectionPoint
 
+
