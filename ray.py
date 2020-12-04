@@ -21,56 +21,32 @@ class Ray(object):
 
     def intersect(self, polygon, id):
         intersectionShape = polygon.exterior.intersection(self.toShapelyLine())
-        #print("Intersect Method")
-        #print(type(intersectionShape))
-        #print(intersectionShape)
         centroide = self.originPoint
         if isinstance(intersectionShape, Point):
             distance = centroide.distance(intersectionShape)
             intersection = Intersection(id, intersectionShape, distance)
             self.intersectionList.append(intersection)
         if isinstance(intersectionShape, MultiLineString):
-            #print("Not Point")
-            for line in intersectionShape:
-                x, y = line.xy
-                point1 = Point(x[0],y[0])
-                point2 = Point(x[1],y[1])
-
-                if point1.distance(point2) <= 4.0:
-                    #print("Distancia insignificante")
-                    distance = centroide.distance(point1)
-                    intersection1 = Intersection(id, point1, distance)
-                    self.intersectionList.append(intersection1)
-                else:
-                    distance1 = centroide.distance(point1)
-                    distance2 = centroide.distance(point2)
-                    intersection1 = Intersection(id, point1, distance1)
-                    intersection2 = Intersection(id, point2, distance2)
-                    self.intersectionList.append(intersection1)
-                    self.intersectionList.append(intersection2)
-
-                #print(point1)
-                #print(point2)
-            #print("---------------")
+            print(intersectionShape)
+            x,y = intersectionShape[0].xy
+            point = Point(x[1],y[1])
+            distance = centroide.distance(point)
+            intersection = Intersection(id, point, distance)
+            self.intersectionList.append(intersection)
         if isinstance(intersectionShape, MultiPoint):
-            #print("Not Point")
-            for line in intersectionShape:
-                x, y = line.xy
-                point = Point(x[0],y[0])
-                distance = centroide.distance(point)
-                intersection = Intersection(id, point, distance)
-                self.intersectionList.append(intersection)
-                #print(point)
-                #print("---------------")
+            print(intersectionShape)
+            lenMultiPoint = len(intersectionShape)
+            lastPoint = intersectionShape[lenMultiPoint-1]
+            x,y = lastPoint.xy
+            point = Point(x[0], y[0])
+            distance = centroide.distance(point)
+            intersection = Intersection(id, point, distance)
+            self.intersectionList.append(intersection)
         return self.intersectionList
 
     def calcularDistance(self):
         for intersection in self.intersectionList:
             intersectionPoint = intersection.intersectionPoint
             distance = intersection.calculateDistance(self.originPoint)
-            print("CONTORNO")
-            print(intersection.contourId)
-            print("DISTANCIA")
-            print(distance)
             self.distanceList.append(distance)
         return self.distanceList

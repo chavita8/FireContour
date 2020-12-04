@@ -4,7 +4,6 @@ import math
 from shapely.wkt import loads
 from shapely.geometry.point import Point
 from shapely.geometry import MultiPolygon, Polygon, MultiPoint, MultiLineString
-from segmento import Segmento
 from contour import Contour
 import random
 from ray import Ray
@@ -12,12 +11,14 @@ from ray import Ray
 class Segmentation(object):
     def __init__(self):
         self.image = cv2.imread("fire.png")
+        self.whiteColor = (255, 255, 255)
+        self.blackColor = (0, 0, 0)
         self.blueColor = (255, 0, 0)
         self.greenColor = (0, 255, 0)
         self.redColor = (0, 0, 255)
         self.yellowColor = (0, 255, 255)
-        self.pinkColor = (255, 255, 0)
-        self.nColor = (255, 0, 255)
+        self.cianColor = (255, 255, 0)
+        self.pinkColor = (255, 0, 255)
         self.centroidList = []
         self.invariantsHuMoments = []
         self.invariantsSiftPoints = []
@@ -38,9 +39,9 @@ class Segmentation(object):
             cv2.imwrite("GreenMask.png", greenImage)
             cannyImageRed = cv2.Canny(imageRedYellow, 127, 255)
             cv2.imwrite("RedCanny.png", cannyImageRed)
-            _,contours,_ = cv2.findContours(cannyImageRed, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_NONE)
+            _,contours,_ = cv2.findContours(cannyImageRed, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
             centroid = self.findCentroid(contours[0])
-            cv2.circle(self.image, centroid, 3, self.pinkColor, 3)
+            cv2.circle(self.image, centroid, 3, self.whiteColor, 3)
 
             polygons, res = self.generatePolygons(numberContours,contours)
             lastContour = []
@@ -50,11 +51,7 @@ class Segmentation(object):
             intersections = self.intersectPolygons(polygons,raysList)
             self.drawPoints(intersections)
             print("Puntos")
-            dictRays = self.showRays(raysList)
-            distanceDiff = self.calcularDiferenciaDistancia(dictRays,0)
-            print(distanceDiff)
-            #speeds = self.calcularVelocidadRayos(numberRays)
-            #variations = self.calcularVariacionDistanciaRayos(numberRays)
+            self.drawRayId(raysList,5)
 
             cv2.imwrite("image.png", self.image)
             cv2.imshow("image",self.image)
@@ -62,7 +59,24 @@ class Segmentation(object):
         else:
             print("error loading image")
 
-    def showRays(self, raysList):
+    def drawRayId(self,raysList, rayId):
+        x = 200
+        y = 530
+        dictRays = self.generateDictRays(raysList)
+        word1 = "Ray:  " + str(rayId)
+        self.writeImageText(word1, x, y, self.blackColor)
+        word2 ="Distances"
+        self.writeImageText(word2, x, y+10, self.blackColor)
+        distanceDiff = self.calcularDiferenciaDistancia(dictRays, rayId)
+        word3 = str(distanceDiff)
+        self.writeImageText(word3, x, y+35, self.whiteColor)
+        word4 = "speeds"
+        self.writeImageText(word4, x, y+55, self.blackColor)
+        speeds = self.calculateSpeed(dictRays, rayId)
+        word5 = str(speeds)
+        self.writeImageText(word5, x, y+75, self.whiteColor)
+
+    def generateDictRays(self, raysList):
         dict = {}
         for ray in raysList:
             intersectionList = ray.intersectionList
@@ -76,7 +90,6 @@ class Segmentation(object):
     def calcularDiferenciaDistancia(self, rayList, rayID):
         variacionDistancia = []
         intersectionRays = rayList[rayID]
-        print(intersectionRays)
         i = 0
         while i < len(intersectionRays):
             if i + 1 < len(intersectionRays):
@@ -89,11 +102,29 @@ class Segmentation(object):
             i = i + 1
         return variacionDistancia
 
+    def calculateSpeed(self, rayList, rayID):
+        speedList = []
+        intersectionRays = rayList[rayID]
+        i = 0
+        while i + 1 < len(intersectionRays):
+            intersection1 = intersectionRays[i]
+            intersection2 = intersectionRays[i + 1]
+            distancia1 = intersection1.distance
+            distancia2 = intersection2.distance
+            v = 0
+            dX = abs(distancia2 - distancia1)
+            dT = intersection1.contourId + 1
+            if dT != 0:
+                v = dX / dT
+            speedList.append(v)
+            i += 1
+        return speedList
+
     def generatePolygons(self, numC, contour):
         listPolygonsShapely = []
         res, contoursList = self.generateContours(numC,contour[0],[])
         largestContour = self.largestContour(contoursList)
-        #cv2.drawContours(self.image, lists, -1, self.blueColor, 3)
+
         for contourObj in contoursList:
             cnt = contourObj.contour
             color = contourObj.color
@@ -129,19 +160,13 @@ class Segmentation(object):
             scaleIncrease = random.uniform(1.1, 1.6)
             scaleDecrease = random.uniform(1.1, 1.3)
             operator = random.randint(0,3)
-            print("OPERATOR")
-            print(operator)
             if operator == 1:
                 newSize = self.scaleContour(lastContour.contour,scaleDecrease,operator)
-                contourObject = Contour(newSize, self.nColor, "decrease")
-                print("SCALE DECREASE")
-                print(scaleDecrease)
+                contourObject = Contour(newSize, self.pinkColor, "decrease")
             else:
                 newSize = self.scaleContour(lastContour.contour, scaleIncrease)
                 contourObject = Contour(newSize, self.blueColor, "increase")
-                print("SCALE INCREASE")
-                print(scaleIncrease)
-            #lastContour = newSize
+
             lastContour = contourObject
             list.append(lastContour)
         return (lastContour,list)
@@ -177,17 +202,16 @@ class Segmentation(object):
         coords.append(subwest)
         coords.append(west)
         coords.append(northwest)
-        self.writeImage("N", north[0],north[1])
-        self.writeImage("S", sub[0],sub[1])
-        self.writeImage("E", east[0],east[1])
-        self.writeImage("O", west[0],west[1])
+        #self.writeImage("N", north[0],north[1], self.whiteColor)
+        #self.writeImage("S", sub[0],sub[1], self.whiteColor)
+        #self.writeImage("E", east[0],east[1], self.whiteColor)
+        #self.writeImage("O", west[0],west[1], self.whiteColor)
         if numL <= 8:
             pointsDirection = coords[:numL]
         else:
             pointsDirection = self.calculateMidlepoints(coords, numL-len(coords))
         self.traceRays(self.image, centroid, pointsDirection)
         rays = self.createRays(centroid,pointsDirection)
-        #multiline = self.buildMultilineShapely(centroid,pointsDirection)
         return rays
 
     def buildMultilineShapely(self, centroid, spaceWork):
@@ -207,6 +231,7 @@ class Segmentation(object):
         for i, point in enumerate (pointsDirection):
             ray = Ray(i, pointCentroid, point)
             rays.append(ray)
+            self.writeImage(str(i),int(point[0]),int(point[1]), self.blackColor)
         return rays
 
     def drawPoints(self,intersections):
@@ -217,6 +242,7 @@ class Segmentation(object):
                     x = point.x
                     y = point.y
                     cv2.circle(self.image, (int(x), int(y)), 2, self.yellowColor, 2)
+                    self.writeImage(str(intersection.contourId),int(x),int(y), self.cianColor)
 
     def intersectPolygons(self,polygons,rays):
         listIntersections = []
@@ -264,8 +290,8 @@ class Segmentation(object):
 
     def traceRays(self, img, centroid, rays):
         for point in rays:
-            cv2.circle(img,point,1,self.pinkColor,1)
-            cv2.line(img, (centroid[0], centroid[1]),(point[0],point[1]), self.pinkColor,1)
+            cv2.circle(img,point,1,self.whiteColor,1)
+            cv2.line(img, (centroid[0], centroid[1]),(point[0],point[1]), self.whiteColor,1)
 
     def north(self,centroid, contours):
         c = max(contours, key=cv2.contourArea)
@@ -294,46 +320,6 @@ class Segmentation(object):
         extLeft[1] = centroid[1]
         res = tuple(extLeft)
         return res
-
-    def calculateIntersection(self, contornoID, polygon, lines, centroid):
-        intersection = polygon.exterior.intersection(lines)
-        if intersection.is_empty:
-            print("shape don't intersect")
-        elif intersection.geom_type.startswith('Multi') or intersection.geom_type == 'GeometryCollection':
-            for i, shp in enumerate(intersection):
-                if isinstance(shp, Point):
-                    cv2.circle(self.image, (int(shp.x), int(shp.y)), 2, self.yellowColor, 2)
-                    distance = self.calculateDistanceBetweenTwoPoints(centroid[0], centroid[1], shp.x, shp.y)
-                    segment = Segmento(contornoID, i, centroid, (shp.x,shp.y), distance)
-                    #self.writeImage(str(i),int(shp.x),int(shp.y))
-                    self.segments.append(segment)
-                else:
-                    x,y = shp.xy
-                    cv2.circle(self.image, (int(x[0]), int(y[0])), 2, self.yellowColor, 2)
-                    distance = self.calculateDistanceBetweenTwoPoints(centroid[0], centroid[1], x[0], y[0])
-                    segment = Segmento(contornoID,i, centroid, (x[0], y[0]), distance)
-                    #self.writeImage(str(i), int(x[0]), int(y[0]))
-                    self.segments.append(segment)
-        else:
-            print(intersection)
-
-    def calculateSpeed(self, segmentsList):
-        speedList = []
-        tamano = len(segmentsList)
-        i = 0
-        while i + 1 < tamano:
-            segment1 = segmentsList[i]
-            segment2 = segmentsList[i + 1]
-            d1 = segment1.distancia
-            d2 = segment2.distancia
-            v = 0
-            dX = d2 - d1
-            dT = segment1.contornoID + 1
-            if dT != 0:
-                v = dX / dT
-            speedList.append(v)
-            i += 1
-        return speedList
 
     def calculateDistanceBetweenTwoPoints(self, puntoX1, puntoY1, puntoX2, puntoY2):
         distancia = math.sqrt((puntoX2-puntoX1)**2 + (puntoY2-puntoY1)**2)
@@ -411,7 +397,6 @@ class Segmentation(object):
         return segmentosContorno
 
     def calcularVelocidadRayos(self,numeroRayos):
-        # Calcular velocidad de todos los rayos trazados
         count = 0
         velocidadRayos = {}
         while count < numeroRayos:
@@ -423,7 +408,6 @@ class Segmentation(object):
         return velocidadRayos
 
     def calcularVariacionDistanciaRayos(self,numeroRayos):
-        # Calcular variacion de distancia de todos los rayos trazados
         count = 0
         distanciaRayos = {}
         while count < numeroRayos:
@@ -431,11 +415,16 @@ class Segmentation(object):
             distancia = self.calcularDiferenciaDistancia(count)
             distanciaRayos[count] = distancia
             count = count + 1
-        print("Variacion Distancia Rayos: " + str(distanciaRayos))
         return distanciaRayos
 
-    def writeImage(self, palabra, x, y):
+    def writeImage(self, palabra, x, y, color):
         fontFace = cv2.FONT_ITALIC
-        fontScale = 0.5
+        fontScale = 0.3
+        espesor = 0
+        cv2.putText(self.image, palabra, (x,y),fontFace, fontScale, color, espesor)
+
+    def writeImageText(self, palabra, x, y, color):
+        fontFace = cv2.FONT_ITALIC
+        fontScale = 0.4
         espesor = 1
-        cv2.putText(self.image, palabra, (x,y),fontFace, fontScale, self.pinkColor, espesor)
+        cv2.putText(self.image, palabra, (x,y),fontFace, fontScale, color, espesor)
