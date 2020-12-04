@@ -49,9 +49,12 @@ class Segmentation(object):
             raysList = self.generateRays(centroid, lastContour, numberRays)
             intersections = self.intersectPolygons(polygons,raysList)
             self.drawPoints(intersections)
-            self.showRays(raysList)
-            speeds = self.calcularVelocidadRayos(numberRays)
-            variations = self.calcularVariacionDistanciaRayos(numberRays)
+            print("Puntos")
+            dictRays = self.showRays(raysList)
+            distanceDiff = self.calcularDiferenciaDistancia(dictRays,0)
+            print(distanceDiff)
+            #speeds = self.calcularVelocidadRayos(numberRays)
+            #variations = self.calcularVariacionDistanciaRayos(numberRays)
 
             cv2.imwrite("image.png", self.image)
             cv2.imshow("image",self.image)
@@ -62,18 +65,29 @@ class Segmentation(object):
     def showRays(self, raysList):
         dict = {}
         for ray in raysList:
-            print("RayId")
-            print(ray.rayId)
             intersectionList = ray.intersectionList
-            pointList = []
-            for i in intersectionList:
-                print("ContourId")
-                print(i.contourId)
-                print(i.intersectionPoint)
-                point = (i.intersectionPoint.x,i.intersectionPoint.y)
-                pointList.append(point)
-            dict[ray.rayId] = pointList
+            intersections = []
+            for intersection in intersectionList:
+                intersections.append(intersection)
+            dict[ray.rayId] = intersections
         print(dict)
+        return dict
+
+    def calcularDiferenciaDistancia(self, rayList, rayID):
+        variacionDistancia = []
+        intersectionRays = rayList[rayID]
+        print(intersectionRays)
+        i = 0
+        while i < len(intersectionRays):
+            if i + 1 < len(intersectionRays):
+                intersection1 = intersectionRays[i]
+                intersection2 = intersectionRays[i + 1]
+                distancia1 = intersection1.distance
+                distancia2 = intersection2.distance
+                variacion = distancia2 - distancia1
+                variacionDistancia.append(variacion)
+            i = i + 1
+        return variacionDistancia
 
     def generatePolygons(self, numC, contour):
         listPolygonsShapely = []
@@ -189,8 +203,9 @@ class Segmentation(object):
 
     def createRays(self, centroid, pointsDirection):
         rays = []
+        pointCentroid = Point(centroid)
         for i, point in enumerate (pointsDirection):
-            ray = Ray(i, centroid, point)
+            ray = Ray(i, pointCentroid, point)
             rays.append(ray)
         return rays
 
@@ -319,21 +334,6 @@ class Segmentation(object):
             speedList.append(v)
             i += 1
         return speedList
-
-    def calcularDiferenciaDistancia(self, segmentoID):
-        variacionDistancia = []
-        listaSegmentos = self.obtenerSegmentosPorSegmentosID(segmentoID)
-        i = 0
-        while i < len(listaSegmentos):
-            if i + 1 < len(listaSegmentos):
-                segmento1 = listaSegmentos[i]
-                segmento2 = listaSegmentos[i + 1]
-                distancia1 = segmento1.distancia
-                distancia2 = segmento2.distancia
-                variacion = distancia2 - distancia1
-                variacionDistancia.append(variacion)
-            i = i + 1
-        return variacionDistancia
 
     def calculateDistanceBetweenTwoPoints(self, puntoX1, puntoY1, puntoX2, puntoY2):
         distancia = math.sqrt((puntoX2-puntoX1)**2 + (puntoY2-puntoY1)**2)
