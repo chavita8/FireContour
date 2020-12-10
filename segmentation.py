@@ -46,11 +46,9 @@ class Segmentation(object):
             polygons, res = self.generatePolygons(numberContours,contours)
             lastContour = []
             lastContour.append(res)
-
             raysList = self.generateRays(centroid, lastContour, numberRays)
             intersections = self.intersectPolygons(polygons,raysList)
             self.drawPoints(intersections)
-            print("Puntos")
             self.drawRayId(raysList,5)
 
             cv2.imwrite("image.png", self.image)
@@ -63,18 +61,26 @@ class Segmentation(object):
         x = 200
         y = 530
         dictRays = self.generateDictRays(raysList)
+        intersections = dictRays[rayId]
+        points = []
+        for intersection in intersections:
+            point = intersection.intersectionPoint
+            tuple = (int(point.x), int(point.y))
+            points.append(tuple)
         word1 = "Ray:  " + str(rayId)
-        self.writeImageText(word1, x, y, self.blackColor)
+        self.writeImageText(word1, x, y, self.whiteColor)
+        word7 = str(points)
+        self.writeImageText(word7, x, y + 10, self.blackColor)
         word2 ="Distances"
-        self.writeImageText(word2, x, y+10, self.blackColor)
+        self.writeImageText(word2, x, y+35, self.blackColor)
         distanceDiff = self.calcularDiferenciaDistancia(dictRays, rayId)
         word3 = str(distanceDiff)
-        self.writeImageText(word3, x, y+35, self.whiteColor)
+        self.writeImageText(word3, x, y+50, self.whiteColor)
         word4 = "speeds"
-        self.writeImageText(word4, x, y+55, self.blackColor)
+        self.writeImageText(word4, x, y+75, self.blackColor)
         speeds = self.calculateSpeed(dictRays, rayId)
         word5 = str(speeds)
-        self.writeImageText(word5, x, y+75, self.whiteColor)
+        self.writeImageText(word5, x, y+90, self.blackColor)
 
     def generateDictRays(self, raysList):
         dict = {}
