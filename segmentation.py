@@ -3,6 +3,11 @@ import numpy as np
 import math
 from shapely.wkt import loads
 from shapely.geometry.point import Point
+# Import sinusoid functions
+from neurodsp.sim import sim_oscillation, sim_bursty_oscillation
+from neurodsp.utils import set_random_seed
+from neurodsp.utils import create_times
+from neurodsp.plts.time_series import plot_time_series
 from shapely.geometry import MultiPolygon, Polygon, MultiPoint, MultiLineString
 from contour import Contour
 import random
@@ -25,7 +30,7 @@ class Segmentation(object):
         self.invariantsSurtPoints = []
         self.segments = []
 
-    def segmentImage(self, numberRays, numberContours):
+    def segmentImage(self, numberRays, time, sampling_rate, oscillation_freq):
         if np.any(self.image):
             imageNoise = cv2.medianBlur(self.image, 11)
             imageHSV = cv2.cvtColor(imageNoise, cv2.COLOR_BGR2HSV)
@@ -43,7 +48,7 @@ class Segmentation(object):
             centroid = self.findCentroid(contours[0])
             cv2.circle(self.image, centroid, 3, self.whiteColor, 3)
 
-            polygons, res = self.generatePolygons(numberContours,contours)
+            polygons, res = self.simulateContours(contours[0],time,sampling_rate,oscillation_freq)
             lastContour = []
             lastContour.append(res)
             raysList = self.generateRays(centroid, lastContour, numberRays)
@@ -126,6 +131,60 @@ class Segmentation(object):
             i += 1
         return speedList
 
+    def simulateContours(self,contour,time,sampling_rate,oscillation_freq):
+        contours_list = []
+        set_random_seed(0)
+        oscillation_sine = sim_oscillation(time,sampling_rate,oscillation_freq, cycle='sine')
+        times = create_times(time,sampling_rate)
+        scaleIncrease = random.uniform(1.1, 1.6)
+        #scaleIncrease = 1.5
+        scaleDecrease = random.uniform(1.1, 1.3)
+        #scaleDecrease = 1.2
+        firstContour = Contour(contour, self.blueColor, "first")
+        contours_list.append(firstContour)
+        list_size = len(contours_list)
+
+        for i,value in enumerate(oscillation_sine):
+            if i+1 < len(oscillation_sine):
+                b = oscillation_sine[i+1]
+                a = oscillation_sine[i]
+                difference = b-a
+                if difference > 0:
+                    #crece
+                    last_contour = contours_list[list_size-1]
+                    new_contour = self.scaleContour(last_contour.contour, scaleIncrease*2)
+                    scaled_contour = Contour(new_contour, self.blueColor, "increace")
+                    contours_list.append(scaled_contour)
+                elif difference < 0:
+                    #decrece
+                    last_contour = contours_list[list_size - 1]
+                    new_contour = self.scaleContour(last_contour.contour, scaleDecrease*2, True)
+                    scaled_contour = Contour(new_contour, self.pinkColor, "decreace")
+                    contours_list.append(scaled_contour)
+        plot_time_series(times, oscillation_sine)
+        return self.generatePolygons(contours_list)
+
+    def generatePolygons(self, contours_list):
+        listPolygonsShapely = []
+        largestContour = self.largestContour(contours_list)
+
+        for contourObj in contours_list:
+            cnt = contourObj.contour
+            color = contourObj.color
+            cv2.drawContours(self.image, cnt, -1, color, 3)
+            polygon = []
+            array = cnt
+            startingPoint = (array[0][0][0], array[0][0][1])
+            for pointArray in array:
+                tupla = (pointArray[0][0], pointArray[0][1])
+                polygon.append(tupla)
+            polygon.append(startingPoint)
+            poligonoShapely = Polygon(polygon)
+            listPolygonsShapely.append(poligonoShapely)
+        multiPolygon = MultiPolygon(listPolygonsShapely)
+        return (multiPolygon, largestContour.contour)
+
+    '''
     def generatePolygons(self, numC, contour):
         listPolygonsShapely = []
         res, contoursList = self.generateContours(numC,contour[0],[])
@@ -146,6 +205,7 @@ class Segmentation(object):
             listPolygonsShapely.append(poligonoShapely)
         multiPolygon = MultiPolygon(listPolygonsShapely)
         return (multiPolygon, largestContour.contour)
+    '''
 
     def largestContour(self,contoursList):
         largest = None
@@ -172,7 +232,6 @@ class Segmentation(object):
             else:
                 newSize = self.scaleContour(lastContour.contour, scaleIncrease)
                 contourObject = Contour(newSize, self.blueColor, "increase")
-
             lastContour = contourObject
             list.append(lastContour)
         return (lastContour,list)
