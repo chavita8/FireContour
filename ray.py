@@ -27,14 +27,14 @@ class Ray(object):
             intersection = Intersection(id, intersectionShape, distance)
             self.intersectionList.append(intersection)
         if isinstance(intersectionShape, MultiLineString):
-            print(intersectionShape)
+            #print(intersectionShape)
             x,y = intersectionShape[0].xy
             point = Point(x[1],y[1])
             distance = centroide.distance(point)
             intersection = Intersection(id, point, distance)
             self.intersectionList.append(intersection)
         if isinstance(intersectionShape, MultiPoint):
-            print(intersectionShape)
+            #print(intersectionShape)
             lenMultiPoint = len(intersectionShape)
             lastPoint = intersectionShape[lenMultiPoint-1]
             x,y = lastPoint.xy
