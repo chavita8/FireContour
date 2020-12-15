@@ -3,6 +3,7 @@ import numpy as np
 import math
 from shapely.wkt import loads
 from shapely.geometry.point import Point
+import matplotlib.pyplot as plt
 # Import sinusoid functions
 from neurodsp.sim import sim_oscillation, sim_bursty_oscillation
 from neurodsp.utils import set_random_seed
@@ -25,6 +26,7 @@ class Segmentation(object):
         self.cianColor = (255, 255, 0)
         self.pinkColor = (255, 0, 255)
         self.centroidList = []
+
         self.invariantsHuMoments = []
         self.invariantsSiftPoints = []
         self.invariantsSurtPoints = []
@@ -46,9 +48,12 @@ class Segmentation(object):
             cv2.imwrite("RedCanny.png", cannyImageRed)
             _,contours,_ = cv2.findContours(cannyImageRed, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
             centroid = self.findCentroid(contours[0])
+            self.centroid = centroid
             cv2.circle(self.image, centroid, 3, self.whiteColor, 3)
 
-            polygons, res = self.simulateContours(contours[0],time,sampling_rate,oscillation_freq)
+            polygons, res = self.simulateContours(contours[0],time,sampling_rate,oscillation_freq, centroid)
+            print("POLYGONS : " + str(len(polygons)))
+            #print(polygons)
             lastContour = []
             lastContour.append(res)
             raysList = self.generateRays(centroid, lastContour, numberRays)
@@ -63,8 +68,8 @@ class Segmentation(object):
             print("error loading image")
 
     def drawRayId(self,raysList, rayId):
-        x = 200
-        y = 530
+        x = 30
+        y = 550
         dictRays = self.generateDictRays(raysList)
         intersections = dictRays[rayId]
         points = []
@@ -73,18 +78,24 @@ class Segmentation(object):
             tuple = (int(point.x), int(point.y))
             points.append(tuple)
         word1 = "Ray:  " + str(rayId)
+        print(word1)
         self.writeImageText(word1, x, y, self.whiteColor)
         word7 = str(points)
+        print(word7)
         self.writeImageText(word7, x, y + 10, self.blackColor)
         word2 ="Distances"
-        self.writeImageText(word2, x, y+35, self.blackColor)
+        print(word2)
+        self.writeImageText(word2, x, y+35, self.whiteColor)
         distanceDiff = self.calcularDiferenciaDistancia(dictRays, rayId)
         word3 = str(distanceDiff)
-        self.writeImageText(word3, x, y+50, self.whiteColor)
+        print(word3)
+        self.writeImageText(word3, x, y+50, self.blackColor)
         word4 = "speeds"
+        print(word4)
         self.writeImageText(word4, x, y+75, self.blackColor)
         speeds = self.calculateSpeed(dictRays, rayId)
         word5 = str(speeds)
+        print(word5)
         self.writeImageText(word5, x, y+90, self.blackColor)
 
     def generateDictRays(self, raysList):
@@ -131,37 +142,46 @@ class Segmentation(object):
             i += 1
         return speedList
 
-    def simulateContours(self,contour,time,sampling_rate,oscillation_freq):
+    def simulateContours(self,contour,time,sampling_rate,oscillation_freq, centroid):
         contours_list = []
+        distances = []
         set_random_seed(0)
         oscillation_sine = sim_oscillation(time,sampling_rate,oscillation_freq, cycle='sine')
         times = create_times(time,sampling_rate)
-        scaleIncrease = random.uniform(1.1, 1.6)
-        #scaleIncrease = 1.5
-        scaleDecrease = random.uniform(1.1, 1.3)
-        #scaleDecrease = 1.2
+        print("TIMES : " + str(len(times))+ "tipo "+str(times[0]))
+        print(times)
+        print("SINE : " + str(len(oscillation_sine))+ "tipo "+str(oscillation_sine[0]))
+        print(oscillation_sine)
         firstContour = Contour(contour, self.blueColor, "first")
         contours_list.append(firstContour)
-        list_size = len(contours_list)
 
         for i,value in enumerate(oscillation_sine):
             if i+1 < len(oscillation_sine):
-                b = oscillation_sine[i+1]
-                a = oscillation_sine[i]
-                difference = b-a
-                if difference > 0:
-                    #crece
+                pointA = (times[i],oscillation_sine[i])
+                distanceA = self.calculateDistanceBetweenTwoPoints(centroid[0], centroid[1], pointA[0], pointA[1])
+                #distance = distanceB - distanceA
+                distances.append(distanceA)
+                print("Distance : ")
+                print(distanceA)
+                if distanceA > 0:
+                    print("crece")
+                    scale = random.uniform(1.1, 1.4)
+                    list_size = len(contours_list)
                     last_contour = contours_list[list_size-1]
-                    new_contour = self.scaleContour(last_contour.contour, scaleIncrease*2)
+                    new_contour = self.scaleContour(last_contour.contour, scale)
                     scaled_contour = Contour(new_contour, self.blueColor, "increace")
                     contours_list.append(scaled_contour)
-                elif difference < 0:
-                    #decrece
+                elif distanceA < 0:
+                    print("decrece")
+                    scale = random.uniform(1.1, 1.4)
+                    list_size = len(contours_list)
                     last_contour = contours_list[list_size - 1]
-                    new_contour = self.scaleContour(last_contour.contour, scaleDecrease*2, True)
+                    new_contour = self.scaleContour(last_contour.contour, scale, 1)
                     scaled_contour = Contour(new_contour, self.pinkColor, "decreace")
                     contours_list.append(scaled_contour)
-        plot_time_series(times, oscillation_sine)
+        plt.plot(distances)
+        plt.show()
+        #plot_time_series(times, oscillation_sine)
         return self.generatePolygons(contours_list)
 
     def generatePolygons(self, contours_list):
