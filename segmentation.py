@@ -4,12 +4,11 @@ import math
 from shapely.wkt import loads
 from shapely.geometry.point import Point
 import matplotlib.pyplot as plt
-# Import sinusoid functions
 from neurodsp.sim import sim_oscillation, sim_bursty_oscillation
 from neurodsp.utils import set_random_seed
 from neurodsp.utils import create_times
-from neurodsp.plts.time_series import plot_time_series
 from shapely.geometry import MultiPolygon, Polygon, MultiPoint, MultiLineString
+from sklearn.linear_model import LinearRegression
 from contour import Contour
 import random
 from ray import Ray
@@ -26,13 +25,11 @@ class Segmentation(object):
         self.cianColor = (255, 255, 0)
         self.pinkColor = (255, 0, 255)
         self.centroidList = []
-
         self.invariantsHuMoments = []
         self.invariantsSiftPoints = []
         self.invariantsSurtPoints = []
-        self.segments = []
 
-    def segmentImage(self, numberRays, time, sampling_rate, oscillation_freq):
+    def segmentImage(self, numberRays, time, samplingRate, oscillationFreq):
         if np.any(self.image):
             imageNoise = cv2.medianBlur(self.image, 11)
             imageHSV = cv2.cvtColor(imageNoise, cv2.COLOR_BGR2HSV)
@@ -51,7 +48,7 @@ class Segmentation(object):
             self.centroid = centroid
             cv2.circle(self.image, centroid, 3, self.whiteColor, 3)
 
-            polygons, res = self.simulateContours(contours[0],time,sampling_rate,oscillation_freq, centroid)
+            polygons, res = self.simulateContours(contours[0],time,samplingRate,oscillationFreq, centroid)
             print("POLYGONS : " + str(len(polygons)))
             #print(polygons)
             lastContour = []
@@ -60,6 +57,7 @@ class Segmentation(object):
             intersections = self.intersectPolygons(polygons,raysList)
             self.drawPoints(intersections)
             self.drawRayId(raysList,5)
+            self.mostrarGraficoDistancia(raysList,5)
 
             cv2.imwrite("image.png", self.image)
             cv2.imshow("image",self.image)
@@ -109,6 +107,16 @@ class Segmentation(object):
         print(dict)
         return dict
 
+    def mostrarGraficoDistancia(self,rayList,rayID):
+        distances = []
+        intersectionRay = rayList[rayID]
+        distances = intersectionRay.calcularDistance();
+        #for intersection in intersectionRay:
+        #    distances.append(intersection.distance)
+        print(distances)
+        plt.plot(distances)
+        plt.show()
+
     def calcularDiferenciaDistancia(self, rayList, rayID):
         variacionDistancia = []
         intersectionRays = rayList[rayID]
@@ -142,47 +150,82 @@ class Segmentation(object):
             i += 1
         return speedList
 
-    def simulateContours(self,contour,time,sampling_rate,oscillation_freq, centroid):
+    def simulateContours(self,contour,time,samplingRate,oscillationFreq, centroid):
         contours_list = []
         distances = []
-        set_random_seed(0)
-        oscillation_sine = sim_oscillation(time,sampling_rate,oscillation_freq, cycle='sine')
-        times = create_times(time,sampling_rate)
+        #set_random_seed(0)
+        #oscillationSine = sim_oscillation(time,samplingRate,oscillationFreq, cycle='sine')
+        #times = create_times(time,samplingRate)
+        N = 50  # number of data points
+        times = np.linspace(0, 2 * np.pi, N)
+        f = 1.15247  # Optional!! Advised not to use
+        data = 3.0 * np.sin(f * times + 0.001) + 0.5 + np.random.randn(N)  # create artificial data with noise
+        guess_mean = np.mean(data)
+        guess_std = 3 * np.std(data) / (2 ** 0.5) / (2 ** 0.5)
+        guess_phase = 0
+        guess_freq = 1
+        guess_amp = 1
+        oscillationSine = guess_std * np.sin(times + guess_phase) + guess_mean
+
         print("TIMES : " + str(len(times))+ "tipo "+str(times[0]))
         print(times)
-        print("SINE : " + str(len(oscillation_sine))+ "tipo "+str(oscillation_sine[0]))
-        print(oscillation_sine)
+        print("SINE : " + str(len(oscillationSine))+ "tipo "+str(oscillationSine[0]))
+        print(oscillationSine)
         firstContour = Contour(contour, self.blueColor, "first")
         contours_list.append(firstContour)
+        maxValue = -100.0
 
-        for i,value in enumerate(oscillation_sine):
-            if i+1 < len(oscillation_sine):
-                pointA = (times[i],oscillation_sine[i])
-                distanceA = self.calculateDistanceBetweenTwoPoints(centroid[0], centroid[1], pointA[0], pointA[1])
-                #distance = distanceB - distanceA
-                distances.append(distanceA)
+        for i,value in enumerate(oscillationSine):
+            if i+1 < len(oscillationSine):
+                sinusoidePoint = (times[i],oscillationSine[i])
+                distance = self.calculateDistanceBetweenTwoPoints(centroid[0], centroid[1], sinusoidePoint[0], sinusoidePoint[1])
+                distances.append(distance)
                 print("Distance : ")
-                print(distanceA)
-                if distanceA > 0:
+                print(distance)
+                scale = random.uniform(1.1, 1.4)
+                list_size = len(contours_list)
+                last_contour = contours_list[list_size - 1]
+                scaled_contour = None;
+                print("value: " + str(value))
+                print("maxValue: " + str(maxValue))
+                if value > maxValue:
                     print("crece")
-                    scale = random.uniform(1.1, 1.4)
-                    list_size = len(contours_list)
-                    last_contour = contours_list[list_size-1]
                     new_contour = self.scaleContour(last_contour.contour, scale)
                     scaled_contour = Contour(new_contour, self.blueColor, "increace")
+                else:
+                    if value < maxValue:
+                        print("decrece")
+                        new_contour = self.scaleContour(last_contour.contour, scale, 1)
+                        scaled_contour = Contour(new_contour, self.pinkColor, "decreace")
+                    else:
+                        print("Se mantiene ")
+                if scaled_contour != None:
                     contours_list.append(scaled_contour)
-                elif distanceA < 0:
-                    print("decrece")
-                    scale = random.uniform(1.1, 1.4)
-                    list_size = len(contours_list)
-                    last_contour = contours_list[list_size - 1]
-                    new_contour = self.scaleContour(last_contour.contour, scale, 1)
-                    scaled_contour = Contour(new_contour, self.pinkColor, "decreace")
-                    contours_list.append(scaled_contour)
-        plt.plot(distances)
+                maxValue = value
+        #plt.plot(distances)
+        plt.scatter(times, oscillationSine)
         plt.show()
-        #plot_time_series(times, oscillation_sine)
+        #self.linearRegression(times,distances)
         return self.generatePolygons(contours_list)
+
+    def linearRegression(self,times,distances):
+        regresion_lineal = LinearRegression()
+        # instruimos a la regresion lineal que aprenda de los datos (x,y)
+        #x = np.arange(0,len(distances),1)
+        regresion_lineal.fit(times.reshape(-1, 1),distances)
+
+        # vemos los parametros que ha estimado la regresion lineal
+        w = regresion_lineal.coef_
+        b = regresion_lineal.intercept_
+
+        print('w = ' + str(w))
+        print('b = ' + str(b))
+
+        # vamos a predecir y = regresion_lineal(5)
+        #nuevo_x = np.array([0])
+        prediccion = regresion_lineal.predict(times.reshape(-1, 1))
+        plt.scatter(times,prediccion)
+        print(prediccion)
 
     def generatePolygons(self, contours_list):
         listPolygonsShapely = []
@@ -203,29 +246,6 @@ class Segmentation(object):
             listPolygonsShapely.append(poligonoShapely)
         multiPolygon = MultiPolygon(listPolygonsShapely)
         return (multiPolygon, largestContour.contour)
-
-    '''
-    def generatePolygons(self, numC, contour):
-        listPolygonsShapely = []
-        res, contoursList = self.generateContours(numC,contour[0],[])
-        largestContour = self.largestContour(contoursList)
-
-        for contourObj in contoursList:
-            cnt = contourObj.contour
-            color = contourObj.color
-            cv2.drawContours(self.image, cnt, -1, color, 3)
-            polygon = []
-            array = cnt
-            startingPoint = (array[0][0][0], array[0][0][1])
-            for pointArray in array:
-                tupla = (pointArray[0][0], pointArray[0][1])
-                polygon.append(tupla)
-            polygon.append(startingPoint)
-            poligonoShapely = Polygon(polygon)
-            listPolygonsShapely.append(poligonoShapely)
-        multiPolygon = MultiPolygon(listPolygonsShapely)
-        return (multiPolygon, largestContour.contour)
-    '''
 
     def largestContour(self,contoursList):
         largest = None

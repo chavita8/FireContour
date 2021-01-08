@@ -4,8 +4,8 @@ from neurodsp.utils import set_random_seed
 from neurodsp.utils import create_times
 from neurodsp.plts.time_series import plot_time_series
 
-time = 0.5
-sampling_rate = 30
+time = 1.5
+sampling_rate = 100
 oscillation_freq = 1
 set_random_seed(0)
 oscillation_sine = sim_oscillation(time, sampling_rate, oscillation_freq, cycle='sine')
