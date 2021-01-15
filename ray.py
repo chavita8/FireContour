@@ -9,8 +9,8 @@ class Ray(object):
         self.originPoint = originPoint
         self.destinationPoint = destinationPoint
         self.direction = None
-        self.intersectionList = []
-        self.distanceList = []
+        self.intersectionsList = []
+        self.distancesList = []
 
     def rayId(self):
         return self.rayId
@@ -26,30 +26,27 @@ class Ray(object):
             if isinstance(intersectionShape, Point):
                 distance = centroide.distance(intersectionShape)
                 intersection = Intersection(id, intersectionShape, distance)
-                self.intersectionList.append(intersection)
+                self.intersectionsList.append(intersection)
             if isinstance(intersectionShape, MultiLineString):
-                #print(intersectionShape)
                 x,y = intersectionShape[0].xy
                 point = Point(x[1],y[1])
                 distance = centroide.distance(point)
                 intersection = Intersection(id, point, distance)
-                self.intersectionList.append(intersection)
+                self.intersectionsList.append(intersection)
             if isinstance(intersectionShape, MultiPoint):
-                #print(intersectionShape)
                 lenMultiPoint = len(intersectionShape)
                 lastPoint = intersectionShape[lenMultiPoint-1]
                 x,y = lastPoint.xy
                 point = Point(x[0], y[0])
                 distance = centroide.distance(point)
                 intersection = Intersection(id, point, distance)
-                self.intersectionList.append(intersection)
+                self.intersectionsList.append(intersection)
         except:
             print("except")
-        return self.intersectionList
+        return self.intersectionsList
 
-    def calcularDistance(self):
-        for intersection in self.intersectionList:
-            intersectionPoint = intersection.intersectionPoint
+    def calcularDistances(self):
+        for intersection in self.intersectionsList:
             distance = intersection.calculateDistance(self.originPoint)
-            self.distanceList.append(distance)
-        return self.distanceList
+            self.distancesList.append(distance)
+        return self.distancesList
