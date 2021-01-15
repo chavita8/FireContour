@@ -1,3 +1,13 @@
+"""! @brief Definicion de la clase Segmentation. """
+
+##
+# @file segmentation.py
+#
+# @brief Define la clase Segmentation
+#
+# @section description_segmentation Description
+# Define la clase Segmentation que segmenta el fuego de una imagen de una fogata, obtiene el contorno y realiza una simulacion basada en el crecimiento/decrecimiento sinusoidal.
+
 import cv2
 import numpy as np
 import math
@@ -10,6 +20,9 @@ import random
 from ray import Ray
 
 class Segmentation(object):
+    """! clase Segmentation.
+    # Define la clase Segmentation que segmenta el fuego de una imagen de una fogata, obtiene el contorno y realiza una simulacion basada en el crecimiento/decrecimiento sinusoidal.
+    """
     def __init__(self):
         self.image = cv2.imread("fire.png")
         self.whiteColor = (255, 255, 255)
@@ -60,6 +73,12 @@ class Segmentation(object):
             print("error loading image")
 
     def simulateContours(self,contour, numberContours, centroid):
+        """! Metodo que genera poligonos de shapely en base a una simulacion de crecimiento/decrecimiento de un contorno de forma sinusoidal
+        @param contour Contorno inicial
+        @param numberContours Numero de contornos a simular
+        @param centroid Punto del centroide
+        @return Lista de poligonos de shapely construidos.
+        """
         contours_list = []
         distances = []
         N = numberContours  # number of data points
@@ -112,6 +131,10 @@ class Segmentation(object):
         return self.generatePolygons(contours_list)
 
     def generatePolygons(self, contours_list):
+        """! Metodo que construye poligonos de shapely en base a un la lista de contornos en numpy.
+        @param contours_list Lista de contornos numpy.
+        @return  Lista de polignos shapely.
+        """
         listPolygonsShapely = []
         largestContour = self.largestContour(contours_list)
 
@@ -132,6 +155,10 @@ class Segmentation(object):
         return (multiPolygon, largestContour.contour)
 
     def largestContour(self,contoursList):
+        """! Metodo que encuenta el contorno con area mas grande de la lista.
+        @param contoursList Lista de objetos Contour
+        @return El Contorno de area mas grande.
+        """
         largest = None
         maximunArea = -1
         for contour in contoursList:
@@ -142,6 +169,13 @@ class Segmentation(object):
         return largest
 
     def generateRays(self, centroid, lastContour, numL):
+        """! Metodo que genera numL Rayos desde el centroide hasta el ultimo contorno en todas las direcciones definidas por las coordenadas polares calculadas.
+        @param centroid Centroide del contorno.
+        @param lastContour Ultimo contorno de la simulacion.
+        @param numL Numero de Rayos a generar.
+        @return Lista de rayos generados desde el centroide hacia todos los puntos de direccion.
+
+        """
         coords = []
         north = self.north(centroid, lastContour)
         sub = self.sub(centroid, lastContour)
@@ -172,6 +206,11 @@ class Segmentation(object):
         return rays
 
     def createRays(self, centroid, pointsDirection):
+        """! Metodo que crea objetos Ray trazados desde el centroide hacia todos los puntos de direccion.
+        @param centroid Centroide
+        @param pointsDirection Lista de puntos de direccion o coordenadas polares
+        @return Lista de objetos Ray
+        """
         rays = []
         pointCentroid = Point(centroid)
         for i, point in enumerate(pointsDirection):
@@ -181,6 +220,11 @@ class Segmentation(object):
         return rays
 
     def intersectBetweenRaysAndPolygon(self,polygons,rays):
+        """! Metodo que intersecta cada uno de los poligonos de la lista con cada rayo de la lista de rayos generados.
+        @param polygons Lista de poligonos shapely
+        @param rays Lista de Rayos
+        @return Lista de objetos Intersection.
+        """
         listIntersections = []
         for i,polygon in enumerate(polygons):
             for ray in rays:
@@ -189,10 +233,14 @@ class Segmentation(object):
         return listIntersections
 
     def drawRayId(self,raysList, rayId):
+        """! Metodo que muestra la velocidad, distancia y puntos de interseccion de un rayo especificado de manera grafica en la imagen de salida del algoritmo.
+        @param raysList Lista de rayos
+        @param rayId Identificador de rayo
+        """
         x = 30
         y = 550
-        dictRays = self.generateDictRays(raysList)
-        intersections = dictRays[rayId]
+        ray = raysList[rayId];
+        intersections = ray.intersectionsList
         points = []
         for intersection in intersections:
             point = intersection.intersectionPoint
@@ -207,30 +255,23 @@ class Segmentation(object):
         word2 ="Distances"
         print(word2)
         self.writeImageText(word2, x, y+35, self.whiteColor)
-        distanceDiff = self.calcularDiferenciaDistancia(dictRays, rayId)
+        distanceDiff = self.calcularDiferenciaDistancia(raysList, rayId)
         word3 = str(distanceDiff)
         print(word3)
         self.writeImageText(word3, x, y+50, self.blackColor)
         word4 = "speeds"
         print(word4)
         self.writeImageText(word4, x, y+75, self.blackColor)
-        speeds = self.calculateSpeed(dictRays, rayId)
+        speeds = self.calculateSpeed(raysList, rayId)
         word5 = str(speeds)
         print(word5)
         self.writeImageText(word5, x, y+90, self.blackColor)
 
-    def generateDictRays(self, raysList):
-        dict = {}
-        for ray in raysList:
-            intersectionList = ray.intersectionsList
-            intersections = []
-            for intersection in intersectionList:
-                intersections.append(intersection)
-            dict[ray.rayId] = intersections
-        print(dict)
-        return dict
-
     def mostrarGraficoDistancia(self,rayList,rayID):
+        """! Metodo que calcula y grafica la lista de distancias de un rayo determinado pasado por parametro.
+        @param rayList Lista de rayos
+        @param rayID Identificador de rayo
+        """
         ray = rayList[rayID]
         distances = ray.calcularDistances();
         print(distances)
@@ -238,8 +279,15 @@ class Segmentation(object):
         plt.show()
 
     def calcularDiferenciaDistancia(self, rayList, rayID):
+        """! Metodo que calcula la lista de diferencia de distancias a partir de la lista de distancias
+
+        @param rayList Lista de rayos
+        @param rayID Identificador de rayo
+        @return: Lista de diferencia de distancias
+        """
         variacionDistancia = []
-        intersectionRays = rayList[rayID]
+        ray = rayList[rayID]
+        intersectionRays = ray.intersectionsList;
         i = 0
         while i < len(intersectionRays):
             if i + 1 < len(intersectionRays):
@@ -253,8 +301,14 @@ class Segmentation(object):
         return variacionDistancia
 
     def calculateSpeed(self, rayList, rayID):
+        """! Metodo que calcula la velocidad de un rayo determinado pasado por parametro
+        @param rayList Lista de rayos
+        @param rayID Identificador de rayo
+        @return:
+        """
         speedList = []
-        intersectionRays = rayList[rayID]
+        ray = rayList[rayID]
+        intersectionRays = ray.intersectionsList;
         i = 0
         while i + 1 < len(intersectionRays):
             intersection1 = intersectionRays[i]
@@ -271,6 +325,10 @@ class Segmentation(object):
         return speedList
 
     def linearRegression(self,times,distances):
+        """! Metodo que entrena un algoritmo de regresion lineal
+        @param times Lista de valores en x
+        @param distances Lista de Valores en y
+        """
         regresion_lineal = LinearRegression()
         # instruimos a la regresion lineal que aprenda de los datos (x,y)
         #x = np.arange(0,len(distances),1)
@@ -290,6 +348,13 @@ class Segmentation(object):
         print(prediccion)
 
     def scaleContour(self, contour, scale, decrease=None):
+        """! Metodo que realiza el escalado de un contorno de 2 modos diferentes: increase, decrease
+
+        @param contour Contorno numpy:
+        @param scale Valor de escalado
+        @param decrease Modo decrecimiento por defecto crece
+        @return: Un contorno escalado
+        """
         M = cv2.moments(contour)
         cx = int(M['m10']/M['m00'])
         cy = int(M['m01']/M['m00'])
@@ -303,6 +368,9 @@ class Segmentation(object):
         return contourScaled
 
     def drawPoints(self,intersections):
+        """! Metodo que dibuja los puntos de interseccion en la imagen resultante
+        @param intersections Lista de intersecciones
+        """
         for list in intersections:
             for intersection in list:
                 point = intersection.intersectionPoint
@@ -312,8 +380,13 @@ class Segmentation(object):
                     cv2.circle(self.image, (int(x), int(y)), 2, self.yellowColor, 2)
                     self.writeImage(str(intersection.contourId),int(x),int(y), self.cianColor)
 
-    def calculateMidlepoints(self, listaCoords, num):
-        counter = num
+    def calculateMidlepoints(self, listaCoords, n):
+        """! Metodo que calcula n puntos medios de una lista de coordenadas
+        @param listaCoords Lista de coordenadas/puntos
+        @param n Numero de puntos medios a calcular
+        @return Lista de coordenadas con los puntos medios calculados
+        """
+        counter = n
         i = 0 
         while counter > 0: 
             if i+1 < len(listaCoords):
@@ -332,6 +405,11 @@ class Segmentation(object):
         return listaCoords
 
     def middlePoint(self, coordA, coordB):
+        """! Metodo que calcula un punto medio entre dos puntos
+        @param coordA Primer punto
+        @param coordB Segundo punto
+        @return Punto medio
+        """
         xA = coordA[0]
         yA = coordA[1]
         xB = coordB[0]
@@ -342,18 +420,34 @@ class Segmentation(object):
         return res
 
     def puntoMedio(self, coord1, coord2):
+        """! Metodo que calcula un punto medio entre dos puntos para calcular coordenadas polares
+        @param coord1 Primer punto
+        @param coord2 Segundo punto
+        @return Punto medio
+        """
         yCoord1 = coord1[1]
         yCoord2 = coord2[1]
         diff = (yCoord2 - yCoord1) / 2
         res = (coord2[0], int(yCoord1 + diff))
         return res
 
+
     def drawRays(self, img, centroid, rays):
+        """! Metodo que dibuja los rayos generados desde el centroide hacia una lista de puntos en la imagen resultante.
+        @param img Imagen resultante
+        @param centroid Centroide
+        @param rays Lista de puntos
+        """
         for point in rays:
             cv2.circle(img,point,1,self.whiteColor,1)
             cv2.line(img, (centroid[0], centroid[1]),(point[0],point[1]), self.whiteColor,1)
 
     def north(self,centroid, contours):
+        """! Metodo que calcula el punto norte de un contorno dado
+        @param centroid Centroide
+        @param contours Contorno
+        @return Punto norte
+        """
         c = max(contours, key=cv2.contourArea)
         extTop = list(c[c[:, :, 1].argmin()][0])
         extTop[0] = centroid[0]
@@ -361,6 +455,12 @@ class Segmentation(object):
         return res
 
     def sub(self,centroid, contours):
+        """! Metodo que calcula el punto sud de un contorno dado
+        @param centroid Centroide
+        @param contours Contorno
+        @return Punto sud
+        """
+
         c = max(contours, key=cv2.contourArea)
         extBot = list(c[c[:, :, 1].argmax()][0])
         extBot[0] = centroid[0]
@@ -368,6 +468,12 @@ class Segmentation(object):
         return res
 
     def east(self,centroid, contours):
+        """! Metodo que calcula el punto este de un contorno dado
+        @param centroid Centroide
+        @param contours Contorno
+        @return Punto este
+        """
+
         c = max(contours, key=cv2.contourArea)
         extRight = list(c[c[:, :, 0].argmax()][0])
         extRight[1] = centroid[1]
@@ -375,6 +481,12 @@ class Segmentation(object):
         return res
 
     def west(self,centroid, contours):
+        """! Metodo que calcula el punto oeste de un contorno dado
+        @param centroid Centroide
+        @param contours Contorno
+        @return Punto oeste
+        """
+
         c = max(contours, key=cv2.contourArea)
         extLeft = list(c[c[:, :, 0].argmin()][0])
         extLeft[1] = centroid[1]
@@ -434,48 +546,6 @@ class Segmentation(object):
             x = int(momentos['m10']/momentos['m00'])
             y = int(momentos['m01']/momentos['m00'])
         return (x,y)
-
-    def obtenerSegmentosPorContornoID(self, contornoID):
-        segmentosContorno = []
-        for segmento in self.segmentos:
-            if segmento.contornoID == contornoID:
-                segmentosContorno.append(segmento)
-        return segmentosContorno
-
-    def obtenerSegmentosPorID(self, segmentoID):
-        segmentosContorno = []
-        for segmento in self.segments:
-            if segmento.segmentoID == segmentoID:
-                segmentosContorno.append(segmento)
-        return segmentosContorno
-
-    def obtenerSegmentosPorSegmentosID(self, segmentoID):
-        segmentosContorno = []
-        for segmento in self.segments:
-            if segmento.segmentoID == segmentoID:
-                segmentosContorno.append(segmento)
-        return segmentosContorno
-
-    def calcularVelocidadRayos(self,numeroRayos):
-        count = 0
-        velocidadRayos = {}
-        while count < numeroRayos:
-            segmentos = self.obtenerSegmentosPorSegmentosID(count)
-            velocidad = self.calculateSpeed(segmentos)
-            velocidadRayos[count] = velocidad
-            count = count + 1
-        print("VelocidadRayos: " + str(velocidadRayos))
-        return velocidadRayos
-
-    def calcularVariacionDistanciaRayos(self,numeroRayos):
-        count = 0
-        distanciaRayos = {}
-        while count < numeroRayos:
-            segmentos = self.obtenerSegmentosPorSegmentosID(count)
-            distancia = self.calcularDiferenciaDistancia(count)
-            distanciaRayos[count] = distancia
-            count = count + 1
-        return distanciaRayos
 
     def writeImage(self, palabra, x, y, color):
         fontFace = cv2.FONT_ITALIC
