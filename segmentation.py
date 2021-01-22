@@ -52,7 +52,7 @@ class Segmentation(object):
             self.drawPoints(intersections)
             self.drawRayId(raysList,5)
             self.mostrarGraficoDistancia(raysList,5)
-            #self.linearRegression(raysList)
+            self.linearRegressionDistances(raysList,5)
             cv2.imwrite("image.png", self.image)
             cv2.imshow("image",self.image)
             cv2.waitKey(0)
@@ -268,11 +268,18 @@ class Segmentation(object):
             i += 1
         return speedList
 
-    def linearRegression(self,distances):
+    def linearRegressionDistances(self,rayList,rayID):
         """! Metodo que entrena un algoritmo de regresion lineal
         @param times Lista de valores en x
         @param distances Lista de Valores en y
         """
+        ray = rayList[rayID]
+        distances = ray.obtenerDistances();
+
+        times = []
+        for time in range(0,len(distances)):
+            times.append(time)
+        times = np.array(times)
         regresion_lineal = LinearRegression()
         # instruimos a la regresion lineal que aprenda de los datos (x,y)
         #x = np.arange(0,len(distances),1)
