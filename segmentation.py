@@ -44,7 +44,6 @@ class Segmentation(object):
 
             polygons, res = self.simulateContours(contours[0],numberContours, centroid)
             print("POLYGONS : " + str(len(polygons)))
-            #print(polygons)
             lastContour = []
             lastContour.append(res)
             raysList = self.generateRays(centroid, lastContour, numberRays)
@@ -53,7 +52,7 @@ class Segmentation(object):
             self.drawPoints(intersections)
             self.drawRayId(raysList,5)
             self.mostrarGraficoDistancia(raysList,5)
-            self.linearRegression(raysList)
+            #self.linearRegression(raysList)
             cv2.imwrite("image.png", self.image)
             cv2.imshow("image",self.image)
             cv2.waitKey(0)
@@ -71,10 +70,6 @@ class Segmentation(object):
         guess_std = 3 * np.std(data) / (2 ** 0.5) / (2 ** 0.5)
         guess_phase = 0
         oscillationSine = guess_std * np.sin(times + guess_phase) + guess_mean
-        print("TIMES : " + str(len(times))+ "tipo "+str(times[0]))
-        print(times)
-        print("SINE : " + str(len(oscillationSine))+ "tipo "+str(oscillationSine[0]))
-        print(oscillationSine)
         firstContour = Contour(contour, self.blueColor, "first")
         contours_list.append(firstContour)
         maxValue = -100.0
@@ -84,14 +79,12 @@ class Segmentation(object):
                 sinusoidePoint = (times[i],oscillationSine[i])
                 distance = self.calculateDistanceBetweenTwoPoints(centroid[0], centroid[1], sinusoidePoint[0], sinusoidePoint[1])
                 distances.append(distance)
-                print("Distance : ")
-                print(distance)
                 scale = random.uniform(1.1, 1.4)
                 list_size = len(contours_list)
                 last_contour = contours_list[list_size - 1]
                 scaled_contour = None;
-                print("value: " + str(value))
-                print("maxValue: " + str(maxValue))
+                #print("value: " + str(value))
+                #print("maxValue: " + str(maxValue))
                 if value > maxValue:
                     print("crece")
                     new_contour = self.scaleContour(last_contour.contour, scale)
@@ -106,6 +99,7 @@ class Segmentation(object):
                 if scaled_contour != None:
                     contours_list.append(scaled_contour)
                 maxValue = value
+        print("lISTA DIST:"+ str(distances))
         plt.plot(distances)
         #plt.scatter(times, oscillationSine)
         plt.show()
@@ -192,8 +186,8 @@ class Segmentation(object):
     def drawRayId(self,raysList, rayId):
         x = 30
         y = 550
-        dictRays = self.generateDictRays(raysList)
-        intersections = dictRays[rayId]
+        ray = raysList[rayId]
+        intersections = ray.intersectionsList
         points = []
         for intersection in intersections:
             point = intersection.intersectionPoint
@@ -205,47 +199,36 @@ class Segmentation(object):
         word7 = str(points)
         print(word7)
         self.writeImageText(word7, x, y + 10, self.blackColor)
-        word2 ="Distances"
+        word2 ="Diferencia Distances"
         print(word2)
         self.writeImageText(word2, x, y+35, self.whiteColor)
-        distanceDiff = self.calcularDiferenciaDistancia(dictRays, rayId)
+        distanceDiff = self.calcularDiferenciaDistancia(intersections)
         word3 = str(distanceDiff)
         print(word3)
         self.writeImageText(word3, x, y+50, self.blackColor)
         word4 = "speeds"
         print(word4)
         self.writeImageText(word4, x, y+75, self.blackColor)
-        speeds = self.calculateSpeed(dictRays, rayId)
+        speeds = self.calculateSpeed(intersections)
         word5 = str(speeds)
         print(word5)
         self.writeImageText(word5, x, y+90, self.blackColor)
 
-    def generateDictRays(self, raysList):
-        dict = {}
-        for ray in raysList:
-            intersectionList = ray.intersectionsList
-            intersections = []
-            for intersection in intersectionList:
-                intersections.append(intersection)
-            dict[ray.rayId] = intersections
-        print(dict)
-        return dict
-
     def mostrarGraficoDistancia(self,rayList,rayID):
         ray = rayList[rayID]
-        distances = ray.calcularDistances();
+        distances = ray.obtenerDistances();
+        print("DISTANCES")
         print(distances)
         plt.plot(distances)
         plt.show()
 
-    def calcularDiferenciaDistancia(self, rayList, rayID):
+    def calcularDiferenciaDistancia(self, intersections):
         variacionDistancia = []
-        intersectionRays = rayList[rayID]
         i = 0
-        while i < len(intersectionRays):
-            if i + 1 < len(intersectionRays):
-                intersection1 = intersectionRays[i]
-                intersection2 = intersectionRays[i + 1]
+        while i < len(intersections):
+            if i + 1 < len(intersections):
+                intersection1 = intersections[i]
+                intersection2 = intersections[i + 1]
                 distancia1 = intersection1.distance
                 distancia2 = intersection2.distance
                 variacion = distancia2 - distancia1
@@ -253,13 +236,12 @@ class Segmentation(object):
             i = i + 1
         return variacionDistancia
 
-    def calculateSpeed(self, rayList, rayID):
+    def calculateSpeed(self, intersections):
         speedList = []
-        intersectionRays = rayList[rayID]
         i = 0
-        while i + 1 < len(intersectionRays):
-            intersection1 = intersectionRays[i]
-            intersection2 = intersectionRays[i + 1]
+        while i + 1 < len(intersections):
+            intersection1 = intersections[i]
+            intersection2 = intersections[i + 1]
             distancia1 = intersection1.distance
             distancia2 = intersection2.distance
             v = 0
@@ -270,26 +252,6 @@ class Segmentation(object):
             speedList.append(v)
             i += 1
         return speedList
-
-    def linearRegression(self, rayList):
-        regresion_lineal = LinearRegression()
-        # instruimos a la regresion lineal que aprenda de los datos (x,y)
-        #x = np.arange(0,len(distances),1)
-
-        #regresion_lineal.fit(times.reshape(-1, 1),distances)
-
-        # vemos los parametros que ha estimado la regresion lineal
-        w = regresion_lineal.coef_
-        b = regresion_lineal.intercept_
-
-        print('w = ' + str(w))
-        print('b = ' + str(b))
-
-        # vamos a predecir y = regresion_lineal(5)
-        #nuevo_x = np.array([0])
-        #prediccion = regresion_lineal.predict(times.reshape(-1, 1))
-        #plt.scatter(times,prediccion)
-        #print(prediccion)
 
     def scaleContour(self, contour, scale, decrease=None):
         M = cv2.moments(contour)
@@ -436,48 +398,6 @@ class Segmentation(object):
             x = int(momentos['m10']/momentos['m00'])
             y = int(momentos['m01']/momentos['m00'])
         return (x,y)
-
-    def obtenerSegmentosPorContornoID(self, contornoID):
-        segmentosContorno = []
-        for segmento in self.segmentos:
-            if segmento.contornoID == contornoID:
-                segmentosContorno.append(segmento)
-        return segmentosContorno
-
-    def obtenerSegmentosPorID(self, segmentoID):
-        segmentosContorno = []
-        for segmento in self.segments:
-            if segmento.segmentoID == segmentoID:
-                segmentosContorno.append(segmento)
-        return segmentosContorno
-
-    def obtenerSegmentosPorSegmentosID(self, segmentoID):
-        segmentosContorno = []
-        for segmento in self.segments:
-            if segmento.segmentoID == segmentoID:
-                segmentosContorno.append(segmento)
-        return segmentosContorno
-
-    def calcularVelocidadRayos(self,numeroRayos):
-        count = 0
-        velocidadRayos = {}
-        while count < numeroRayos:
-            segmentos = self.obtenerSegmentosPorSegmentosID(count)
-            velocidad = self.calculateSpeed(segmentos)
-            velocidadRayos[count] = velocidad
-            count = count + 1
-        print("VelocidadRayos: " + str(velocidadRayos))
-        return velocidadRayos
-
-    def calcularVariacionDistanciaRayos(self,numeroRayos):
-        count = 0
-        distanciaRayos = {}
-        while count < numeroRayos:
-            segmentos = self.obtenerSegmentosPorSegmentosID(count)
-            distancia = self.calcularDiferenciaDistancia(count)
-            distanciaRayos[count] = distancia
-            count = count + 1
-        return distanciaRayos
 
     def writeImage(self, palabra, x, y, color):
         fontFace = cv2.FONT_ITALIC

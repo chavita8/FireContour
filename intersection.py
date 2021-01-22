@@ -4,7 +4,3 @@ class Intersection(object):
         self.contourId = contourId
         self.intersectionPoint = intersectionPoint
         self.distance = distance
-
-    def calculateDistance(self, centroide):
-        self.distance = centroide.distance(self.intersectionPoint)
-        return self.distance

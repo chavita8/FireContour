@@ -32,6 +32,7 @@ class Ray(object):
                 point = Point(x[1],y[1])
                 distance = centroide.distance(point)
                 intersection = Intersection(id, point, distance)
+
                 self.intersectionsList.append(intersection)
             if isinstance(intersectionShape, MultiPoint):
                 lenMultiPoint = len(intersectionShape)
@@ -45,8 +46,8 @@ class Ray(object):
             print("except")
         return self.intersectionsList
 
-    def calcularDistances(self):
+    def obtenerDistances(self):
         for intersection in self.intersectionsList:
-            distance = intersection.calculateDistance(self.originPoint)
+            distance = intersection.distance
             self.distancesList.append(distance)
         return self.distancesList
