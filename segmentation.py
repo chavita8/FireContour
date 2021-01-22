@@ -38,7 +38,7 @@ class Segmentation(object):
             cv2.imwrite("GreenMask.png", greenImage)
             cannyImageRed = cv2.Canny(imageRedYellow, 127, 255)
             cv2.imwrite("RedCanny.png", cannyImageRed)
-            _,contours,_ = cv2.findContours(cannyImageRed, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+            contours,_ = cv2.findContours(cannyImageRed, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
             centroid = self.findCentroid(contours[0])
             cv2.circle(self.image, centroid, 3, self.whiteColor, 3)
 
@@ -62,6 +62,7 @@ class Segmentation(object):
     def simulateContours(self,contour, numberContours, centroid):
         contours_list = []
         distances = []
+        """
         N = numberContours  # number of data points
         times = np.linspace(0, 2 * np.pi, N)
         f = 1.15247  # Optional!! Advised not to use
@@ -70,6 +71,19 @@ class Segmentation(object):
         guess_std = 3 * np.std(data) / (2 ** 0.5) / (2 ** 0.5)
         guess_phase = 0
         oscillationSine = guess_std * np.sin(times + guess_phase) + guess_mean
+        """
+        def sine(x):
+            equation = -15*(np.cos(((math.pi/14)*x) - ((3*math.pi)/14))+17)
+            return equation
+        times = []
+        for time in range(0,200):
+            times.append(time)
+        times = np.array(times)
+        oscillationSine = sine(times)
+        plt.scatter(times,oscillationSine)
+        plt.show()
+        print("Oscillation Sine")
+        print(oscillationSine)
         firstContour = Contour(contour, self.blueColor, "first")
         contours_list.append(firstContour)
         maxValue = -100.0
@@ -79,7 +93,8 @@ class Segmentation(object):
                 sinusoidePoint = (times[i],oscillationSine[i])
                 distance = self.calculateDistanceBetweenTwoPoints(centroid[0], centroid[1], sinusoidePoint[0], sinusoidePoint[1])
                 distances.append(distance)
-                scale = random.uniform(1.1, 1.4)
+                scale = 1.3
+                #scale = random.uniform(1.1, 1.4)
                 list_size = len(contours_list)
                 last_contour = contours_list[list_size - 1]
                 scaled_contour = None;
@@ -99,10 +114,10 @@ class Segmentation(object):
                 if scaled_contour != None:
                     contours_list.append(scaled_contour)
                 maxValue = value
-        print("lISTA DIST:"+ str(distances))
-        plt.plot(distances)
+        #print("lISTA DIST:"+ str(distances))
+        #plt.plot(distances)
         #plt.scatter(times, oscillationSine)
-        plt.show()
+        #plt.show()
         #self.linearRegression(times,distances)
         return self.generatePolygons(contours_list)
 
@@ -252,6 +267,29 @@ class Segmentation(object):
             speedList.append(v)
             i += 1
         return speedList
+
+    def linearRegression(self,distances):
+        """! Metodo que entrena un algoritmo de regresion lineal
+        @param times Lista de valores en x
+        @param distances Lista de Valores en y
+        """
+        regresion_lineal = LinearRegression()
+        # instruimos a la regresion lineal que aprenda de los datos (x,y)
+        #x = np.arange(0,len(distances),1)
+        regresion_lineal.fit(times.reshape(-1, 1),distances)
+
+        # vemos los parametros que ha estimado la regresion lineal
+        w = regresion_lineal.coef_
+        b = regresion_lineal.intercept_
+
+        print('w = ' + str(w))
+        print('b = ' + str(b))
+
+        # vamos a predecir y = regresion_lineal(5)
+        #nuevo_x = np.array([0])
+        prediccion = regresion_lineal.predict(times.reshape(-1, 1))
+        plt.scatter(times,prediccion)
+        print(prediccion)
 
     def scaleContour(self, contour, scale, decrease=None):
         M = cv2.moments(contour)
@@ -410,3 +448,4 @@ class Segmentation(object):
         fontScale = 0.4
         espesor = 1
         cv2.putText(self.image, palabra, (x,y),fontFace, fontScale, color, espesor)
+
