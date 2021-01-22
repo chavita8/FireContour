@@ -49,10 +49,11 @@ class Segmentation(object):
             lastContour.append(res)
             raysList = self.generateRays(centroid, lastContour, numberRays)
             intersections = self.intersectBetweenRaysAndPolygon(polygons,raysList)
+
             self.drawPoints(intersections)
             self.drawRayId(raysList,5)
             self.mostrarGraficoDistancia(raysList,5)
-
+            self.linearRegression(raysList)
             cv2.imwrite("image.png", self.image)
             cv2.imshow("image",self.image)
             cv2.waitKey(0)
@@ -270,11 +271,12 @@ class Segmentation(object):
             i += 1
         return speedList
 
-    def linearRegression(self,times,distances):
+    def linearRegression(self, rayList):
         regresion_lineal = LinearRegression()
         # instruimos a la regresion lineal que aprenda de los datos (x,y)
         #x = np.arange(0,len(distances),1)
-        regresion_lineal.fit(times.reshape(-1, 1),distances)
+
+        #regresion_lineal.fit(times.reshape(-1, 1),distances)
 
         # vemos los parametros que ha estimado la regresion lineal
         w = regresion_lineal.coef_
@@ -285,9 +287,9 @@ class Segmentation(object):
 
         # vamos a predecir y = regresion_lineal(5)
         #nuevo_x = np.array([0])
-        prediccion = regresion_lineal.predict(times.reshape(-1, 1))
-        plt.scatter(times,prediccion)
-        print(prediccion)
+        #prediccion = regresion_lineal.predict(times.reshape(-1, 1))
+        #plt.scatter(times,prediccion)
+        #print(prediccion)
 
     def scaleContour(self, contour, scale, decrease=None):
         M = cv2.moments(contour)
