@@ -5,6 +5,7 @@ from shapely.geometry.point import Point
 import matplotlib.pyplot as plt
 from shapely.geometry import MultiPolygon, Polygon, MultiPoint, MultiLineString
 from sklearn.linear_model import LinearRegression
+from sklearn.svm import SVR
 from contour import Contour
 import random
 from ray import Ray
@@ -38,7 +39,7 @@ class Segmentation(object):
             cv2.imwrite("GreenMask.png", greenImage)
             cannyImageRed = cv2.Canny(imageRedYellow, 127, 255)
             cv2.imwrite("RedCanny.png", cannyImageRed)
-            contours,_ = cv2.findContours(cannyImageRed, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+            _,contours,_ = cv2.findContours(cannyImageRed, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
             centroid = self.findCentroid(contours[0])
             cv2.circle(self.image, centroid, 3, self.whiteColor, 3)
 
@@ -51,8 +52,9 @@ class Segmentation(object):
 
             self.drawPoints(intersections)
             self.drawRayId(raysList,5)
-            self.mostrarGraficoDistancia(raysList,5)
-            self.linearRegressionDistances(raysList,5)
+            #self.mostrarGraficoDistancia(raysList,5)
+            #self.linearRegressionDistances(raysList,5)
+            self.svrDistances(raysList,5)
             cv2.imwrite("image.png", self.image)
             cv2.imshow("image",self.image)
             cv2.waitKey(0)
@@ -62,23 +64,12 @@ class Segmentation(object):
     def simulateContours(self,contour, numberContours, centroid):
         contours_list = []
         distances = []
-        """
-        N = numberContours  # number of data points
-        times = np.linspace(0, 2 * np.pi, N)
-        f = 1.15247  # Optional!! Advised not to use
-        data = 3.0 * np.sin(f * times + 0.001) + 0.5 + np.random.randn(N)  # create artificial data with noise
-        guess_mean = np.mean(data)
-        guess_std = 3 * np.std(data) / (2 ** 0.5) / (2 ** 0.5)
-        guess_phase = 0
-        oscillationSine = guess_std * np.sin(times + guess_phase) + guess_mean
-        """
+
         def sine(x):
             equation = -15*(np.cos(((math.pi/14)*x) - ((3*math.pi)/14))+17)
             return equation
-        times = []
-        for time in range(0,200):
-            times.append(time)
-        times = np.array(times)
+
+        times = np.array(range(0,numberContours))
         oscillationSine = sine(times)
         plt.scatter(times,oscillationSine)
         plt.show()
@@ -297,6 +288,45 @@ class Segmentation(object):
         prediccion = regresion_lineal.predict(times.reshape(-1, 1))
         plt.scatter(times,prediccion)
         print(prediccion)
+
+    def svrDistances(self,rayList,rayID):
+        ray = rayList[rayID]
+        distances = ray.obtenerDistances();
+        times = np.array(range(0,len(distances)))
+        print("times")
+        X = times.reshape(-1,1)
+        print(X)
+        y = np.array(distances).ravel()
+        print("distances")
+        print(y)
+        # Fit regression model
+        svr_rbf = SVR(kernel='rbf', C=100, gamma=0.1, epsilon=.1)
+        svr_lin = SVR(kernel='linear', C=100, gamma='auto')
+        svr_poly = SVR(kernel='poly', C=100, gamma='auto', degree=3, epsilon=.1, coef0=1)
+
+        # Look at the results
+        lw = 2
+        svrs = [svr_rbf, svr_lin, svr_poly]
+        kernel_label = ['RBF', 'Linear', 'Polynomial']
+        model_color = ['m', 'c', 'g']
+
+        fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(15, 10), sharey=True)
+
+        for i, svr in enumerate(svrs):
+            axes[i].plot(X, svr.fit(X, y).predict(X), color=model_color[i], lw=lw,
+                         label='{} model'.format(kernel_label[i]))
+            axes[i].scatter(X[svr.support_], y[svr.support_], facecolor="none", edgecolor=model_color[i], s=50,
+                            label='{} support vectors'.format(kernel_label[i]))
+            axes[i].scatter(X[np.setdiff1d(np.arange(len(X)), svr.support_)],
+                            y[np.setdiff1d(np.arange(len(X)), svr.support_)], facecolor="none", edgecolor="k", s=50,
+                            label='other training data')
+            axes[i].legend(loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=1, fancybox=True, shadow=True)
+
+        fig.text(0.5, 0.04, 'data', ha='center', va='center')
+        fig.text(0.06, 0.5, 'target', ha='center', va='center', rotation='vertical')
+        fig.suptitle("Support Vector Regression", fontsize=14)
+        plt.show()
+
 
     def scaleContour(self, contour, scale, decrease=None):
         M = cv2.moments(contour)
