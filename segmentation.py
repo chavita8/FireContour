@@ -6,9 +6,13 @@ import matplotlib.pyplot as plt
 from shapely.geometry import MultiPolygon, Polygon, MultiPoint, MultiLineString
 from sklearn.linear_model import LinearRegression
 from sklearn.svm import SVR
+from sklearn.neural_network import MLPRegressor
+from sklearn.neural_network import MLPClassifier
+from sklearn.model_selection import train_test_split
 from contour import Contour
 import random
 from ray import Ray
+import seaborn as sns
 
 class Segmentation(object):
     def __init__(self):
@@ -55,6 +59,7 @@ class Segmentation(object):
             #self.mostrarGraficoDistancia(raysList,5)
             #self.linearRegressionDistances(raysList,5)
             self.svrDistances(raysList,5)
+            #self.multiLayerPerceptronRegressor(raysList,5)
             cv2.imwrite("image.png", self.image)
             cv2.imshow("image",self.image)
             cv2.waitKey(0)
@@ -328,6 +333,24 @@ class Segmentation(object):
         fig.suptitle("Support Vector Regression", fontsize=14)
         plt.show()
 
+    def multiLayerPerceptronRegressor(self,rayList,rayID):
+        ray = rayList[rayID]
+        distances = ray.obtenerDistances();
+        times = np.array(range(0,len(distances)))
+        print("times")
+        X = times.reshape(-1,1)
+        print(X)
+        y = np.array(distances).ravel()
+        print("distances")
+        print(y)
+        X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.30)
+        #fitting a MLP model to the data
+        model = MLPRegressor()
+        model.fit(X_train,y_train)
+        expected_y = y_test
+        predicted_y = model.predict(X_test)
+        plt.scatter(X_test,predicted_y)
+        plt.show()
 
     def scaleContour(self, contour, scale, decrease=None):
         M = cv2.moments(contour)
