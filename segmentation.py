@@ -66,7 +66,8 @@ class Segmentation(object):
         distances = []
 
         def sine(x):
-            equation = -15*(np.cos(((math.pi/14)*x) - ((3*math.pi)/14))+17)
+            #equation = -15*(np.cos(((math.pi/14)*x) - ((3*math.pi)/14))+17)
+            equation = (-15 * (np.cos(((math.pi / 14) * x) - ((3 * math.pi) / 14)))) + 17
             return equation
 
         times = np.array(range(0,numberContours))
