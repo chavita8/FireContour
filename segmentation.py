@@ -58,8 +58,8 @@ class Segmentation(object):
             self.drawRayId(raysList,5)
             #self.mostrarGraficoDistancia(raysList,5)
             #self.linearRegressionDistances(raysList,5)
-            self.svrDistances(raysList,5)
-            #self.multiLayerPerceptronRegressor(raysList,5)
+            #self.svrDistances(raysList,5)
+            self.multiLayerPerceptronRegressor(raysList,5)
             cv2.imwrite("image.png", self.image)
             cv2.imshow("image",self.image)
             cv2.waitKey(0)
@@ -343,7 +343,22 @@ class Segmentation(object):
         y = np.array(distances).ravel()
         print("distances")
         print(y)
-        X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.30)
+        model = MLPRegressor(
+            hidden_layer_sizes=(10,), activation='relu', solver='adam', alpha=0.001, batch_size='auto',
+            learning_rate='constant', learning_rate_init=0.01, power_t=0.5, max_iter=1000, shuffle=True,
+            random_state=9, tol=0.0001, verbose=False, warm_start=False, momentum=0.9, nesterovs_momentum=True,
+            early_stopping=False, validation_fraction=0.1, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
+
+        training = model.fit(X,y)
+        predict_y = model.predict(X)
+        fig = plt.figure()
+        ax1 = fig.add_subplot(111)
+        ax1.scatter(X, y, s=1, c='b', marker="s", label='real')
+        ax1.scatter(X, predict_y, s=10, c='r', marker="o", label='NN Prediction')
+        plt.show()
+
+        """
+        X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.30,random_state=0)
         #fitting a MLP model to the data
         model = MLPRegressor()
         model.fit(X_train,y_train)
@@ -351,6 +366,7 @@ class Segmentation(object):
         predicted_y = model.predict(X_test)
         plt.scatter(X_test,predicted_y)
         plt.show()
+        """
 
     def scaleContour(self, contour, scale, decrease=None):
         M = cv2.moments(contour)
