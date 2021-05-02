@@ -35,19 +35,19 @@ plt.plot(xReal, yReal, greenColor)
 plt.show()
 
 
-def linearRegression(self, rayList):
-    regresion_lineal = LinearRegression()
+#def linearRegression(self, rayList):
+    #regresion_lineal = LinearRegression()
     # instruimos a la regresion lineal que aprenda de los datos (x,y)
     # x = np.arange(0,len(distances),1)
 
     # regresion_lineal.fit(times.reshape(-1, 1),distances)
 
     # vemos los parametros que ha estimado la regresion lineal
-    w = regresion_lineal.coef_
-    b = regresion_lineal.intercept_
+    #w = regresion_lineal.coef_
+    #b = regresion_lineal.intercept_
 
-    print('w = ' + str(w))
-    print('b = ' + str(b))
+    #print('w = ' + str(w))
+    #print('b = ' + str(b))
 
     # vamos a predecir y = regresion_lineal(5)
     # nuevo_x = np.array([0])
