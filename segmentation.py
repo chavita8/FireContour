@@ -408,6 +408,109 @@ class Segmentation(object):
             i += 1
         return speedList
 
+    def linearRegressionDistances(self,rayList,rayID):
+        """! Metodo que entrena un algoritmo de regresion lineal
+        @param times Lista de valores en x
+        @param distances Lista de Valores en y
+        """
+        ray = rayList[rayID]
+        distances = ray.obtenerDistances();
+
+        times = []
+        for time in range(0,len(distances)):
+            times.append(time)
+        times = np.array(times)
+        regresion_lineal = LinearRegression()
+        # instruimos a la regresion lineal que aprenda de los datos (x,y)
+        #x = np.arange(0,len(distances),1)
+        regresion_lineal.fit(times.reshape(-1, 1),distances)
+
+        # vemos los parametros que ha estimado la regresion lineal
+        w = regresion_lineal.coef_
+        b = regresion_lineal.intercept_
+
+        print('w = ' + str(w))
+        print('b = ' + str(b))
+
+        # vamos a predecir y = regresion_lineal(5)
+        #nuevo_x = np.array([0])
+        prediccion = regresion_lineal.predict(times.reshape(-1, 1))
+        plt.scatter(times,prediccion)
+        print(prediccion)
+
+    def svrDistances(self,rayList,rayID):
+        ray = rayList[rayID]
+        distances = ray.obtenerDistances();
+        times = np.array(range(0,len(distances)))
+        print("times")
+        X = times.reshape(-1,1)
+        print(X)
+        y = np.array(distances).ravel()
+        print("distances")
+        print(y)
+        # Fit regression model
+        svr_rbf = SVR(kernel='rbf', C=100, gamma=0.1, epsilon=.1)
+        svr_lin = SVR(kernel='linear', C=100, gamma='auto')
+        svr_poly = SVR(kernel='poly', C=100, gamma='auto', degree=3, epsilon=.1, coef0=1)
+
+        # Look at the results
+        lw = 2
+        svrs = [svr_rbf, svr_lin, svr_poly]
+        kernel_label = ['RBF', 'Linear', 'Polynomial']
+        model_color = ['m', 'c', 'g']
+
+        fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(15, 10), sharey=True)
+
+        for i, svr in enumerate(svrs):
+            axes[i].plot(X, svr.fit(X, y).predict(X), color=model_color[i], lw=lw,
+                         label='{} model'.format(kernel_label[i]))
+            axes[i].scatter(X[svr.support_], y[svr.support_], facecolor="none", edgecolor=model_color[i], s=50,
+                            label='{} support vectors'.format(kernel_label[i]))
+            axes[i].scatter(X[np.setdiff1d(np.arange(len(X)), svr.support_)],
+                            y[np.setdiff1d(np.arange(len(X)), svr.support_)], facecolor="none", edgecolor="k", s=50,
+                            label='other training data')
+            axes[i].legend(loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=1, fancybox=True, shadow=True)
+
+        fig.text(0.5, 0.04, 'data', ha='center', va='center')
+        fig.text(0.06, 0.5, 'target', ha='center', va='center', rotation='vertical')
+        fig.suptitle("Support Vector Regression", fontsize=14)
+        plt.show()
+
+    def multiLayerPerceptronRegressor(self,rayList,rayID):
+        ray = rayList[rayID]
+        distances = ray.obtenerDistances();
+        times = np.array(range(0,len(distances)))
+        print("times")
+        X = times.reshape(-1,1)
+        print(X)
+        y = np.array(distances).ravel()
+        print("distances")
+        print(y)
+        model = MLPRegressor(
+            hidden_layer_sizes=(10,), activation='relu', solver='adam', alpha=0.001, batch_size='auto',
+            learning_rate='constant', learning_rate_init=0.01, power_t=0.5, max_iter=1000, shuffle=True,
+            random_state=9, tol=0.0001, verbose=False, warm_start=False, momentum=0.9, nesterovs_momentum=True,
+            early_stopping=False, validation_fraction=0.1, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
+
+        training = model.fit(X,y)
+        predict_y = model.predict(X)
+        fig = plt.figure()
+        ax1 = fig.add_subplot(111)
+        ax1.scatter(X, y, s=1, c='b', marker="s", label='real')
+        ax1.scatter(X, predict_y, s=10, c='r', marker="o", label='NN Prediction')
+        plt.show()
+
+        """
+        X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.30,random_state=0)
+        #fitting a MLP model to the data
+        model = MLPRegressor()
+        model.fit(X_train,y_train)
+        expected_y = y_test
+        predicted_y = model.predict(X_test)
+        plt.scatter(X_test,predicted_y)
+        plt.show()
+        """
+
     def scaleContour(self, contour, scale, decrease=None):
         M = cv2.moments(contour)
         cx = int(M['m10']/M['m00'])
@@ -565,4 +668,3 @@ class Segmentation(object):
         fontScale = 0.4
         espesor = 1
         cv2.putText(self.image, palabra, (x,y),fontFace, fontScale, color, espesor)
-
