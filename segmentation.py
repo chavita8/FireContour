@@ -14,6 +14,8 @@ from sklearn.model_selection import train_test_split
 from contour import Contour
 import random
 import time
+import csv
+import pandas as pd
 
 from ray import Ray
 
@@ -60,9 +62,10 @@ class Segmentation(object):
             self.drawPoints(intersections)
             self.drawRayId(raysList,5)
             self.mostrarGraficoDistancia(raysList,5)
+            self.suavizamientoExponencial(raysList, 5)
             #self.linearRegressionDistances(raysList,5)
-            #self.svrDistances(raysList,5)
-            self.multiLayerPerceptronRegressor(raysList,5)
+            self.svrDistances(raysList,5)
+            #self.multiLayerPerceptronRegressor(raysList,5)
             #self.thelSeinRegressor(raysList,5)
             cv2.imwrite("image.png", self.image)
             cv2.imshow("image",self.image)
@@ -371,11 +374,36 @@ class Segmentation(object):
 
     def mostrarGraficoDistancia(self,rayList,rayID):
         ray = rayList[rayID]
-        distances = ray.obtenerDistances();
+        distances = ray.obtenerDistances()
         print("DISTANCES")
         print(distances)
         plt.plot(distances)
         plt.show()
+
+    def suavizamientoExponencial(self,rayList,rayID):
+        ray = rayList[rayID]
+        distances = ray.obtenerDistances()
+        times = np.array(range(0, len(distances)))
+        X = times.reshape(-1, 1)
+        Y = np.array(distances).reshape(-1,1)
+        print("csv")
+        csv_arr = []
+        csv_arr.append(["tiempo","distancia"])
+        for i,value in enumerate(X):
+            arr = []
+            x = X[i]
+            y = Y[i]
+            arr.append(x[0])
+            arr.append(y[0])
+            csv_arr.append(arr)
+        filename = 'distanciasRayo'+str(rayID)+'.csv'
+        myFile = open(filename, 'w')
+        with myFile:
+            writer = csv.writer(myFile)
+            writer.writerows(csv_arr)
+        df = pd.read_csv(filename)
+        print("DataFrame")
+        print(df)
 
     def calcularDiferenciaDistancia(self, intersections):
         variacionDistancia = []
