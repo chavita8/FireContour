@@ -48,7 +48,7 @@ class Segmentation(object):
             cv2.imwrite("GreenMask.png", greenImage)
             cannyImageRed = cv2.Canny(imageRedYellow, 127, 255)
             cv2.imwrite("RedCanny.png", cannyImageRed)
-            _,contours,_ = cv2.findContours(cannyImageRed, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+            contours,_ = cv2.findContours(cannyImageRed, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
             centroid = self.findCentroid(contours[0])
             cv2.circle(self.image, centroid, 3, self.whiteColor, 3)
 
@@ -58,13 +58,18 @@ class Segmentation(object):
             lastContour.append(res)
             raysList = self.generateRays(centroid, lastContour, numberRays)
             intersections = self.intersectBetweenRaysAndPolygon(polygons,raysList)
-
+            rayId = 5
+            ray = raysList[rayId]
+            distances = ray.obtenerDistances()
+            print("DISTANCIAS:"+ str(len(distances)))
+            print(distances)
+            self.generateCSV(distances, rayId)
+            plt.plot(distances)
             self.drawPoints(intersections)
-            self.drawRayId(raysList,5)
-            self.mostrarGraficoDistancia(raysList,5)
-            self.suavizamientoExponencial(raysList, 5)
+            self.drawRayId(ray)
+
             #self.linearRegressionDistances(raysList,5)
-            self.svrDistances(raysList,5)
+            #self.svrDistances(raysList,5)
             #self.multiLayerPerceptronRegressor(raysList,5)
             #self.thelSeinRegressor(raysList,5)
             cv2.imwrite("image.png", self.image)
@@ -77,48 +82,31 @@ class Segmentation(object):
         contours_list = []
         distances = []
 
-        def sine(x):
-            #equation = -15*(np.cos(((math.pi/14)*x) - ((3*math.pi)/14))+17)
-            equation = (-15 * (np.cos(((math.pi / 14) * x) - ((3 * math.pi) / 14)))) + 17
-            return equation
-
-        times = np.array(range(0,numberContours))
-        oscillationSine = sine(times)
-        plt.scatter(times,oscillationSine)
+        def exp(x):
+            return np.exp(x)
+        x = np.linspace(1.1,2.6,numberContours)
+        print("x")
+        print(x)
+        #times = np.linspace(a, b, int(360/numberContours+1))
+        y = exp(x)
+        #plt.scatter(x,y)
+        plt.plot(x)
         plt.show()
-        print("Oscillation Sine")
-        print(oscillationSine)
+        print("y")
+        print(y)
         firstContour = Contour(contour, self.blueColor, "first")
         contours_list.append(firstContour)
-        maxValue = -100.0
 
-        for i,value in enumerate(oscillationSine):
-            if i+1 < len(oscillationSine):
-                sinusoidePoint = (times[i],oscillationSine[i])
-                distance = self.calculateDistanceBetweenTwoPoints(centroid[0], centroid[1], sinusoidePoint[0], sinusoidePoint[1])
-                distances.append(distance)
-                scale = 1.3
-                #scale = random.uniform(1.1, 1.4)
-                list_size = len(contours_list)
-                last_contour = contours_list[list_size - 1]
-                scaled_contour = None;
-                #print("value: " + str(value))
-                #print("maxValue: " + str(maxValue))
-                if value > maxValue:
-                    print("crece")
-                    new_contour = self.scaleContour(last_contour.contour, scale)
-                    scaled_contour = Contour(new_contour, self.blueColor, "increace")
-                else:
-                    if value < maxValue:
-                        print("decrece")
-                        new_contour = self.scaleContour(last_contour.contour, scale, 1)
-                        scaled_contour = Contour(new_contour, self.pinkColor, "decreace")
-                    else:
-                        print("Se mantiene ")
-                if scaled_contour != None:
-                    contours_list.append(scaled_contour)
-                maxValue = value
-        #print("lISTA DIST:"+ str(distances))
+        for i,value in enumerate(x):
+            scale = 1.1 #scale = random.uniform(1.1, 1.4)
+            list_size = len(contours_list)
+            last_contour = contours_list[list_size - 1]
+            print("crece")
+            new_contour = self.scaleContour(last_contour.contour, scale)
+            scaled_contour = Contour(new_contour, self.blueColor, "increace")
+            contours_list.append(scaled_contour)
+
+    #print("lISTA DIST:"+ str(distances))
         #plt.plot(distances)
         #plt.scatter(times, oscillationSine)
         #plt.show()
@@ -341,11 +329,10 @@ class Segmentation(object):
                 listIntersections.append(intersection)
         return listIntersections
 
-    def drawRayId(self,raysList, rayId):
+    def drawRayId(self,rayId):
         x = 30
         y = 550
-        ray = raysList[rayId]
-        intersections = ray.intersectionsList
+        intersections = rayId.intersectionsList
         points = []
         for intersection in intersections:
             point = intersection.intersectionPoint
@@ -372,21 +359,11 @@ class Segmentation(object):
         print(word5)
         self.writeImageText(word5, x, y+90, self.blackColor)
 
-    def mostrarGraficoDistancia(self,rayList,rayID):
-        ray = rayList[rayID]
-        distances = ray.obtenerDistances()
-        print("DISTANCES")
-        print(distances)
-        plt.plot(distances)
-        plt.show()
-
-    def suavizamientoExponencial(self,rayList,rayID):
-        ray = rayList[rayID]
-        distances = ray.obtenerDistances()
+    def generateCSV(self,distances, rayID):
         times = np.array(range(0, len(distances)))
         X = times.reshape(-1, 1)
         Y = np.array(distances).reshape(-1,1)
-        print("csv")
+        print("Distancias csv: " + str(len(distances)))
         csv_arr = []
         csv_arr.append(["tiempo","distancia"])
         for i,value in enumerate(X):
@@ -401,9 +378,9 @@ class Segmentation(object):
         with myFile:
             writer = csv.writer(myFile)
             writer.writerows(csv_arr)
-        df = pd.read_csv(filename)
-        print("DataFrame")
-        print(df)
+        #df = pd.read_csv(filename)
+        #print("DataFrame")
+        #print(df)
 
     def calcularDiferenciaDistancia(self, intersections):
         variacionDistancia = []
@@ -540,17 +517,19 @@ class Segmentation(object):
         """
 
     def scaleContour(self, contour, scale, decrease=None):
-        M = cv2.moments(contour)
-        cx = int(M['m10']/M['m00'])
-        cy = int(M['m01']/M['m00'])
-        contourNorm = contour - [cx, cy]
-        if decrease == None:
-            contourScaled = contourNorm * scale
-        else:
-            contourScaled = contourNorm / scale
-        contourScaled = contourScaled + [cx, cy]
-        contourScaled = contourScaled.astype(np.int32)
-        return contourScaled
+            M = cv2.moments(contour)
+            contourScaled = contour
+            if M['m00'] != 0:
+                cx = int(M['m10']/M['m00'])
+                cy = int(M['m01']/M['m00'])
+                contourNorm = contour - [cx, cy]
+                if decrease == None:
+                    contourScaled = contourNorm * scale
+                else:
+                    contourScaled = contourNorm / scale
+                contourScaled = contourScaled + [cx, cy]
+                contourScaled = contourScaled.astype(np.int32)
+            return contourScaled
 
     def drawPoints(self,intersections):
         for list in intersections:
@@ -592,8 +571,8 @@ class Segmentation(object):
         return res
 
     def puntoMedio(self, coord1, coord2):
-        yCoord1 = coord1[1]
-        yCoord2 = coord2[1]
+        yCoord1 = np.array(coord1[1],dtype='int64')
+        yCoord2 = np.array(coord2[1],dtype='int64')
         diff = (yCoord2 - yCoord1) / 2
         res = (coord2[0], int(yCoord1 + diff))
         return res
