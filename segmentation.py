@@ -48,7 +48,7 @@ class Segmentation(object):
             cv2.imwrite("GreenMask.png", greenImage)
             cannyImageRed = cv2.Canny(imageRedYellow, 127, 255)
             cv2.imwrite("RedCanny.png", cannyImageRed)
-            contours,_ = cv2.findContours(cannyImageRed, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+            _,contours,_ = cv2.findContours(cannyImageRed, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
             centroid = self.findCentroid(contours[0])
             cv2.circle(self.image, centroid, 3, self.whiteColor, 3)
 
@@ -65,8 +65,9 @@ class Segmentation(object):
             print(distances)
             self.generateCSV(distances, rayId)
             plt.plot(distances)
+            plt.show()
             self.drawPoints(intersections)
-            self.drawRayId(ray)
+            self.drawRayId(ray, rayId)
 
             #self.linearRegressionDistances(raysList,5)
             #self.svrDistances(raysList,5)
@@ -80,25 +81,23 @@ class Segmentation(object):
 
     def simulateContours(self,contour, numberContours, centroid):
         contours_list = []
-        distances = []
 
         def exp(x):
             return np.exp(x)
-        x = np.linspace(1.1,2.6,numberContours)
-        print("x")
-        print(x)
+        x = np.linspace(0,1.1,numberContours)
         #times = np.linspace(a, b, int(360/numberContours+1))
         y = exp(x)
-        #plt.scatter(x,y)
-        plt.plot(x)
+        print("EXPONENCIAL Y: ")
+        print(x)
+        plt.plot(y)
         plt.show()
-        print("y")
-        print(y)
         firstContour = Contour(contour, self.blueColor, "first")
         contours_list.append(firstContour)
 
         for i,value in enumerate(x):
-            scale = 1.1 #scale = random.uniform(1.1, 1.4)
+            scale = 1.07
+            #scale = 1.1 #max value
+            #scale = random.uniform(1.1, 1.4)
             list_size = len(contours_list)
             last_contour = contours_list[list_size - 1]
             print("crece")
@@ -106,11 +105,6 @@ class Segmentation(object):
             scaled_contour = Contour(new_contour, self.blueColor, "increace")
             contours_list.append(scaled_contour)
 
-    #print("lISTA DIST:"+ str(distances))
-        #plt.plot(distances)
-        #plt.scatter(times, oscillationSine)
-        #plt.show()
-        #self.linearRegression(times,distances)
         return self.generatePolygons(contours_list)
 
     def linearRegressionDistances(self,rayList,rayID):
@@ -329,34 +323,34 @@ class Segmentation(object):
                 listIntersections.append(intersection)
         return listIntersections
 
-    def drawRayId(self,rayId):
+    def drawRayId(self,ray, rayId):
         x = 30
         y = 550
-        intersections = rayId.intersectionsList
+        intersections = ray.intersectionsList
         points = []
         for intersection in intersections:
             point = intersection.intersectionPoint
             tuple = (int(point.x), int(point.y))
             points.append(tuple)
         word1 = "Ray:  " + str(rayId)
-        print(word1)
+        #print(word1)
         self.writeImageText(word1, x, y, self.whiteColor)
         word7 = str(points)
-        print(word7)
+        #print(word7)
         self.writeImageText(word7, x, y + 10, self.blackColor)
         word2 ="Diferencia Distances"
-        print(word2)
+        #print(word2)
         self.writeImageText(word2, x, y+35, self.whiteColor)
         distanceDiff = self.calcularDiferenciaDistancia(intersections)
         word3 = str(distanceDiff)
-        print(word3)
+        #print(word3)
         self.writeImageText(word3, x, y+50, self.blackColor)
         word4 = "speeds"
-        print(word4)
+        #print(word4)
         self.writeImageText(word4, x, y+75, self.blackColor)
         speeds = self.calculateSpeed(intersections)
         word5 = str(speeds)
-        print(word5)
+        #print(word5)
         self.writeImageText(word5, x, y+90, self.blackColor)
 
     def generateCSV(self,distances, rayID):

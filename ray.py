@@ -41,9 +41,11 @@ class Ray(object):
                 distance = centroide.distance(point)
                 intersection = Intersection(id, point, distance)
                 self.intersectionsList.append(intersection)
+            #if id == 177:
+            #    print(polygon)
         except:
             print("except")
-            print(polygon)
+            #print(polygon)
         return self.intersectionsList
 
     def obtenerDistances(self):
