@@ -1,7 +1,7 @@
 from shapely.geometry import Point, MultiPoint
 from shapely.geometry import LineString, MultiLineString
 from intersection import Intersection
-import math
+
 
 class Ray(object):
     def __init__(self, rayId, originPoint, destinationPoint):
@@ -41,8 +41,6 @@ class Ray(object):
                 distance = centroide.distance(point)
                 intersection = Intersection(id, point, distance)
                 self.intersectionsList.append(intersection)
-            #if id == 177:
-            #    print(polygon)
         except:
             print("except")
             #print(polygon)

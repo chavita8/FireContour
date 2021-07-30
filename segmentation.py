@@ -69,10 +69,6 @@ class Segmentation(object):
             self.drawPoints(intersections)
             self.drawRayId(ray, rayId)
 
-            #self.linearRegressionDistances(raysList,5)
-            #self.svrDistances(raysList,5)
-            #self.multiLayerPerceptronRegressor(raysList,5)
-            #self.thelSeinRegressor(raysList,5)
             cv2.imwrite("image.png", self.image)
             cv2.imshow("image",self.image)
             cv2.waitKey(0)
@@ -85,19 +81,13 @@ class Segmentation(object):
         def exp(x):
             return np.exp(x)
         x = np.linspace(0,1.1,numberContours)
-        #times = np.linspace(a, b, int(360/numberContours+1))
         y = exp(x)
-        print("EXPONENCIAL Y: ")
-        print(x)
-        plt.plot(y)
-        plt.show()
         firstContour = Contour(contour, self.blueColor, "first")
         contours_list.append(firstContour)
 
         for i,value in enumerate(x):
-            scale = 1.07
+            scale = 1.011
             #scale = 1.1 #max value
-            #scale = random.uniform(1.1, 1.4)
             list_size = len(contours_list)
             last_contour = contours_list[list_size - 1]
             print("crece")
