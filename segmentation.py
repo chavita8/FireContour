@@ -50,8 +50,8 @@ class Segmentation(object):
             _,contours,_ = cv2.findContours(resultimage, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
             centroid = self.findCentroid(contours[0])
             cv2.circle(self.image, centroid, 3, self.whiteColor, 3)
-
-            polygons, res = self.simulateContours(contours[0],numberContours, centroid)
+            self.resizeContours(resultimage,numberContours,centroid)
+            polygons, res = self.generatePolygons()
             print("POLYGONS : " + str(len(polygons)))
             lastContour = []
             lastContour.append(res)
@@ -67,52 +67,35 @@ class Segmentation(object):
             plt.show()
             self.drawPoints(intersections)
             self.drawRayId(ray, rayId)
-            self.resizeImage(numberContours)
             cv2.imwrite("image.png", self.image)
             cv2.imshow("image",self.image)
             cv2.waitKey(0)
         else:
             print("error loading image")
 
-    def getContours(self,image):
-        im_bw = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
-        _,contours,_ = cv2.findContours(im_bw, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-        contour = Contour(contours[0], self.blueColor, "increase")
-        self.contourList.append(contour)
-
-    def resizeImage(self,numberContours, numberRays):
-        img = cv2.imread("dilate.png")
+    def resizeContours(self,img,numberContours,centroide):
         height = img.shape[0]
         width = img.shape[1]
+        print("centroide inicial: " + str(centroide))
         for i in range(numberContours):
-            resized = imutils.resize(img,height=height+20,width=width+20,inter=cv2.INTER_AREA)
+            resized = imutils.resize(img,width=width+200,inter=cv2.INTER_AREA)
             height = resized.shape[0]
             width = resized.shape[1]
-            cv2.imwrite("imagen"+str(i)+".png",resized)
-            self.getContours(resized)
-        firstContour = self.contourList[0]
-        contour = firstContour.contour
-        centroid = self.findCentroid(contour)
-        cv2.circle(self.image, centroid, 3, self.whiteColor, 3)
-        polygons, last = self.generatePolygons(self.contourList)
-        lastContour = []
-        lastContour.append(last)
-        raysList = self.generateRays(centroid, lastContour, numberRays)
-        intersections = self.intersectBetweenRaysAndPolygon(polygons, raysList)
-        rayId = 5
-        ray = raysList[rayId]
-        img = np.zeros((153, 203, 3), np.uint8)
-        distances = ray.obtenerDistances()
-        print("DISTANCIAS:" + str(len(distances)))
-        print(distances)
-        self.generateCSV(distances, rayId)
-        plt.plot(distances)
-        plt.show()
-        self.drawPoints(intersections)
-        self.drawRayId(ray, rayId)
-        cv2.imwrite("image.png", self.image)
-        cv2.imshow("image", self.image)
-        cv2.waitKey(0)
+            #cv2.imwrite("imagen"+str(i)+".png",resized)
+            _, contours, _ = cv2.findContours(resized, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+            new_centroid = self.findCentroid(contours[0])
+            diff_x = centroide[0] - new_centroid[0]
+            diff_y = centroide[1] - new_centroid[1]
+            self.shiftContour(contours[0],diff_x,diff_y)
+            print("nuevo centroide: " + str(new_centroid))
+            print("diferencia centroide: " + str((diff_x, diff_y)))
+            contour = Contour(contours[0], self.blueColor, "increase")
+            self.contourList.append(contour)
+
+    def shiftContour(self,contour,x,y):
+        for i,value in enumerate(contour):
+            contour[i][0][0] += x
+            contour[i][0][1] += y
 
     def simulateContours(self,contour, numberContours, centroid):
         contours_list = []
@@ -155,11 +138,11 @@ class Segmentation(object):
                 contourScaled = contourScaled.astype(np.int32)
             return contourScaled
 
-    def generatePolygons(self, contours_list):
+    def generatePolygons(self):
         listPolygonsShapely = []
-        largestContour = self.largestContour(contours_list)
+        largestContour = self.largestContour(self.contourList)
 
-        for contourObj in contours_list:
+        for contourObj in self.contourList:
             cnt = contourObj.contour
             color = contourObj.color
             cv2.drawContours(self.image, cnt, -1, color, 3)
