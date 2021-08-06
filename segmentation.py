@@ -27,6 +27,8 @@ class Segmentation(object):
         self.invariantsHuMoments = []
         self.invariantsSiftPoints = []
         self.invariantsSurtPoints = []
+        self.contourList = []
+        self.img = np.zeros((1280, 1024, 3), np.uint8)
 
     def segmentImage(self, numberRays, numberContours):
         if np.any(self.image):
@@ -45,21 +47,7 @@ class Segmentation(object):
             kernelmatrix = np.ones((5, 5), np.uint8)
             resultimage = cv2.dilate(cannyImageRed, kernelmatrix)
             cv2.imwrite("dilate.png", resultimage)
-            #cannyDilate = cv2.dilate(cannyImageRed,3,iterations=5)
             _,contours,_ = cv2.findContours(resultimage, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-            #print("Scale")
-            M = cv2.moments(contours[0])
-            cx = int(M['m10'] / M['m00'])
-            cy = int(M['m01'] / M['m00'])
-            #print(cx)
-            #print(cy)
-            contourNorm = contours[0] - [cx, cy]
-            #print(len(contourNorm))
-            #print(contourNorm)
-            contourScaled = contourNorm * 1.01
-            #print(len(contourScaled))
-            #print(contourScaled)
-
             centroid = self.findCentroid(contours[0])
             cv2.circle(self.image, centroid, 3, self.whiteColor, 3)
 
@@ -85,6 +73,46 @@ class Segmentation(object):
             cv2.waitKey(0)
         else:
             print("error loading image")
+
+    def getContours(self,image):
+        im_bw = cv2.cvtColor(image, cv2.COLOR_RGB2GRAY)
+        _,contours,_ = cv2.findContours(im_bw, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+        contour = Contour(contours[0], self.blueColor, "increase")
+        self.contourList.append(contour)
+
+    def resizeImage(self,numberContours, numberRays):
+        img = cv2.imread("dilate.png")
+        height = img.shape[0]
+        width = img.shape[1]
+        for i in range(numberContours):
+            resized = imutils.resize(img,height=height+20,width=width+20,inter=cv2.INTER_AREA)
+            height = resized.shape[0]
+            width = resized.shape[1]
+            cv2.imwrite("imagen"+str(i)+".png",resized)
+            self.getContours(resized)
+        firstContour = self.contourList[0]
+        contour = firstContour.contour
+        centroid = self.findCentroid(contour)
+        cv2.circle(self.image, centroid, 3, self.whiteColor, 3)
+        polygons, last = self.generatePolygons(self.contourList)
+        lastContour = []
+        lastContour.append(last)
+        raysList = self.generateRays(centroid, lastContour, numberRays)
+        intersections = self.intersectBetweenRaysAndPolygon(polygons, raysList)
+        rayId = 5
+        ray = raysList[rayId]
+        img = np.zeros((153, 203, 3), np.uint8)
+        distances = ray.obtenerDistances()
+        print("DISTANCIAS:" + str(len(distances)))
+        print(distances)
+        self.generateCSV(distances, rayId)
+        plt.plot(distances)
+        plt.show()
+        self.drawPoints(intersections)
+        self.drawRayId(ray, rayId)
+        cv2.imwrite("image.png", self.image)
+        cv2.imshow("image", self.image)
+        cv2.waitKey(0)
 
     def simulateContours(self,contour, numberContours, centroid):
         contours_list = []
@@ -386,8 +414,8 @@ class Segmentation(object):
         #mascaraAmarilla = cv2.inRange(imagenHSV, yellowLower, yellowUpper)
         #mascaraImage = cv2.addWeighted(mascaraRoja, 1.0, mascaraAmarilla, 1.0, 0.0)
         imask = mascaraRojo > 0
-        #green = np.zeros_like(self.imagen, np.uint8)
-        #green[imask] = self.imagen[imask]
+        #green = np.zeros_like(self.image, np.uint8)
+        #green[imask] = self.image[imask]
         #cv2.imwrite("Rojo.png", green)
         return mascaraRojo
 
@@ -397,8 +425,8 @@ class Segmentation(object):
         mascara = cv2.inRange(imagenHSV, greenLowerDown, greenUpperUp)
         imask = mascara>0
 
-        #green = np.zeros_like(self.imagen, np.uint8)
-        #green[imask] = self.imagen[imask]
+        #green = np.zeros_like(self.image, np.uint8)
+        #green[imask] = self.image[imask]
         #cv2.imwrite("Verde.png",green)
 
         # maskImage = cv2.bitwise_or(mascara1, mascara2)
@@ -433,13 +461,3 @@ class Segmentation(object):
         fontScale = 0.4
         espesor = 1
         cv2.putText(self.image, palabra, (x,y),fontFace, fontScale, color, espesor)
-
-    def resizeImage(self,resizeNumber):
-        img = cv2.imread("imagenPeque.png")
-        height = img.shape[0]
-        width = img.shape[1]
-        for i in range(resizeNumber):
-            resized = imutils.resize(img,height=height+10,width=width+50,inter=cv2.INTER_AREA)
-            height = resized.shape[0]
-            width = resized.shape[1]
-            cv2.imwrite("imagen"+str(i)+".png",resized)

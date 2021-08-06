@@ -3,5 +3,6 @@ from segmentation import *
 if __name__ == '__main__':
     segment = Segmentation()
     numberRays = 8
-    numberContours = 10
-    segment.segmentImage(numberRays, numberContours)
+    numberContours = 3
+    ##segment.segmentImage(numberRays, numberContours)
+    segment.resizeImage(numberContours,numberRays)
