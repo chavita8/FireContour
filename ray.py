@@ -43,7 +43,8 @@ class Ray(object):
                 self.intersectionsList.append(intersection)
         except:
             print("except")
-            #print(polygon)
+        #if id==1733:
+        #    print(polygon)
         return self.intersectionsList
 
     def obtenerDistances(self):

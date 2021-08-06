@@ -4,18 +4,12 @@ import math
 from shapely.geometry.point import Point
 import matplotlib.pyplot as plt
 from shapely.geometry import MultiPolygon, Polygon, MultiPoint, MultiLineString
-from sklearn.linear_model import LinearRegression
-from sklearn.linear_model import TheilSenRegressor
-from sklearn.linear_model import RANSACRegressor
-from sklearn.svm import SVR
-from sklearn.neural_network import MLPRegressor
-from sklearn.neural_network import MLPClassifier
-from sklearn.model_selection import train_test_split
 from contour import Contour
 import random
 import time
 import csv
 import pandas as pd
+import imutils
 
 from ray import Ray
 
@@ -48,7 +42,24 @@ class Segmentation(object):
             cv2.imwrite("GreenMask.png", greenImage)
             cannyImageRed = cv2.Canny(imageRedYellow, 127, 255)
             cv2.imwrite("RedCanny.png", cannyImageRed)
-            _,contours,_ = cv2.findContours(cannyImageRed, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+            kernelmatrix = np.ones((5, 5), np.uint8)
+            resultimage = cv2.dilate(cannyImageRed, kernelmatrix)
+            cv2.imwrite("dilate.png", resultimage)
+            #cannyDilate = cv2.dilate(cannyImageRed,3,iterations=5)
+            _,contours,_ = cv2.findContours(resultimage, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+            #print("Scale")
+            M = cv2.moments(contours[0])
+            cx = int(M['m10'] / M['m00'])
+            cy = int(M['m01'] / M['m00'])
+            #print(cx)
+            #print(cy)
+            contourNorm = contours[0] - [cx, cy]
+            #print(len(contourNorm))
+            #print(contourNorm)
+            contourScaled = contourNorm * 1.01
+            #print(len(contourScaled))
+            #print(contourScaled)
+
             centroid = self.findCentroid(contours[0])
             cv2.circle(self.image, centroid, 3, self.whiteColor, 3)
 
@@ -68,7 +79,7 @@ class Segmentation(object):
             plt.show()
             self.drawPoints(intersections)
             self.drawRayId(ray, rayId)
-
+            self.resizeImage(numberContours)
             cv2.imwrite("image.png", self.image)
             cv2.imshow("image",self.image)
             cv2.waitKey(0)
@@ -84,9 +95,13 @@ class Segmentation(object):
         y = exp(x)
         firstContour = Contour(contour, self.blueColor, "first")
         contours_list.append(firstContour)
+        img = np.zeros((153, 203, 3), np.uint8)
+        cv2.drawContours(img,firstContour.contour,-1,self.whiteColor,3)
+        cv2.imwrite("newImage.png",img)
 
         for i,value in enumerate(x):
-            scale = 1.011
+            scale = 1.1
+            #scale = random.uniform(1.01, 1.02)
             #scale = 1.1 #max value
             list_size = len(contours_list)
             last_contour = contours_list[list_size - 1]
@@ -97,144 +112,20 @@ class Segmentation(object):
 
         return self.generatePolygons(contours_list)
 
-    def linearRegressionDistances(self,rayList,rayID):
-        """! Metodo que entrena un algoritmo de regresion lineal
-        @param times Lista de valores en x
-        @param distances Lista de Valores en y
-        """
-        ray = rayList[rayID]
-        distances = ray.obtenerDistances();
-        times = np.array(range(0,len(distances)))
-        regresion_lineal = LinearRegression()
-        # instruimos a la regresion lineal que aprenda de los datos (x,y)
-        #x = np.arange(0,len(distances),1)
-        regresion_lineal.fit(times.reshape(-1, 1),distances)
-
-        # vemos los parametros que ha estimado la regresion lineal
-        w = regresion_lineal.coef_
-        b = regresion_lineal.intercept_
-
-        print('w = ' + str(w))
-        print('b = ' + str(b))
-
-        # vamos a predecir y = regresion_lineal(5)
-        #nuevo_x = np.array([0])
-        prediccion = regresion_lineal.predict(times.reshape(-1, 1))
-        plt.scatter(times,prediccion)
-        print(prediccion)
-
-    def svrDistances(self,rayList,rayID):
-        ray = rayList[rayID]
-        distances = ray.obtenerDistances();
-        times = np.array(range(0,len(distances)))
-        print("times")
-        X = times.reshape(-1,1)
-        print(X)
-        y = np.array(distances).ravel()
-        print("distances")
-        print(y)
-        # Fit regression model
-        svr_rbf = SVR(kernel='rbf', C=100, gamma=0.1, epsilon=.1)
-        svr_lin = SVR(kernel='linear', C=100, gamma='auto')
-        svr_poly = SVR(kernel='poly', C=100, gamma='auto', degree=3, epsilon=.1, coef0=1)
-
-        # Look at the results
-        lw = 2
-        #svrs = [svr_rbf, svr_lin, svr_poly]
-        #kernel_label = ['RBF', 'Linear', 'Polynomial']
-        #model_color = ['m', 'c', 'g']
-
-        svrs = [svr_rbf, svr_lin]
-        kernel_label = ['RBF', 'Linear']
-        model_color = ['m', 'c']
-
-        fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(15, 10), sharey=True)
-
-        for i, svr in enumerate(svrs):
-            axes[i].plot(X, svr.fit(X, y).predict(X), color=model_color[i], lw=lw,
-                         label='{} model'.format(kernel_label[i]))
-            axes[i].scatter(X[svr.support_], y[svr.support_], facecolor="none", edgecolor=model_color[i], s=50,
-                            label='{} support vectors'.format(kernel_label[i]))
-            axes[i].scatter(X[np.setdiff1d(np.arange(len(X)), svr.support_)],
-                            y[np.setdiff1d(np.arange(len(X)), svr.support_)], facecolor="none", edgecolor="k", s=50,
-                            label='other training data')
-            axes[i].legend(loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=1, fancybox=True, shadow=True)
-
-        fig.text(0.5, 0.04, 'data', ha='center', va='center')
-        fig.text(0.06, 0.5, 'target', ha='center', va='center', rotation='vertical')
-        fig.suptitle("Support Vector Regression", fontsize=14)
-        plt.show()
-
-    def multiLayerPerceptronRegressor(self,rayList,rayID):
-        ray = rayList[rayID]
-        distances = ray.obtenerDistances();
-        times = np.array(range(0,len(distances)))
-        print("times")
-        X = times.reshape(-1,1)
-        print(X)
-        y = np.array(distances).ravel()
-        print("distances")
-        print(y)
-        """
-        model = MLPRegressor(
-            hidden_layer_sizes=(3,), activation='tanh', solver='lbfgs', alpha=0.001, batch_size='auto',
-            learning_rate='constant', learning_rate_init=0.01, power_t=0.5, max_iter=1000, shuffle=True,
-            random_state=0, tol=0.0001, verbose=False, warm_start=False, momentum=0.9, nesterovs_momentum=True,
-            early_stopping=False, validation_fraction=0.1, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
-        """
-
-        #model = MLPRegressor(hidden_layer_sizes=(100,100,100), activation='tanh', solver='lbfgs',learning_rate="constant",learning_rate_init=0.001,max_iter=1000,alpha=0.001,random_state=8)
-        model = MLPRegressor(hidden_layer_sizes=(100, 100, 100), max_iter=1000, solver='lbfgs', alpha=0.001, activation='tanh', random_state=8, learning_rate='constant')
-        training = model.fit(X,y)
-        predict_y = model.predict(X)
-        fig = plt.figure()
-        ax1 = fig.add_subplot(111)
-        ax1.scatter(X, y, s=1, c='b', marker="s", label='real')
-        ax1.scatter(X, predict_y, s=10, c='r', marker="o", label='NN Prediction')
-        plt.show()
-
-        """
-        X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.30)
-        #fitting a MLP model to the data
-        model = MLPRegressor(hidden_layer_sizes = (100, 8))
-        model.fit(X_train,y_train)
-        expected_y = y_test
-        predicted_y = model.predict(X_test)
-        plt.scatter(X_test,predicted_y)
-        plt.show()
-        """
-
-    def thelSeinRegressor(self,rayList,rayID):
-        ray = rayList[rayID]
-        distances = ray.obtenerDistances();
-        times = np.array(range(0,len(distances)))
-        print("times")
-        X = times.reshape(-1,1)
-        print(X)
-        y = np.array(distances).ravel()
-        print("distances")
-        print(y)
-
-        estimators = [('OLS', LinearRegression()),
-                      ('Theil-Sen', TheilSenRegressor(random_state=42)),
-                      ('RANSAC', RANSACRegressor(random_state=42)), ]
-        colors = {'OLS': 'turquoise', 'Theil-Sen': 'gold', 'RANSAC': 'lightgreen'}
-        lw = 2
-        fig1, ax1 = plt.subplots()
-        ax1.scatter(X, y, color='indigo', marker='x', s=40)
-        line_x = X
-        for name, estimator in estimators:
-            t0 = time.time()
-            estimator.fit(X, y)
-            elapsed_time = time.time() - t0
-            y_pred = estimator.predict(line_x.reshape(len(line_x), 1))
-            ax1.plot(line_x, y_pred, color=colors[name], linewidth=lw,
-                     label='%s (fit time: %.2fs)' % (name, elapsed_time))
-            print(name + " score: " + str(estimator.score(X, y)))
-
-        ax1.axis('tight')
-        ax1.legend(loc='upper left')
-        plt.show()
+    def scaleContour(self, contour, scale, decrease=None):
+            M = cv2.moments(contour)
+            contourScaled = contour
+            if M['m00'] != 0:
+                cx = int(M['m10']/M['m00'])
+                cy = int(M['m01']/M['m00'])
+                contourNorm = contour - [cx, cy]
+                if decrease == None:
+                    contourScaled = contourNorm * scale
+                else:
+                    contourScaled = contourNorm / scale
+                contourScaled = contourScaled + [cx, cy]
+                contourScaled = contourScaled.astype(np.int32)
+            return contourScaled
 
     def generatePolygons(self, contours_list):
         listPolygonsShapely = []
@@ -265,6 +156,14 @@ class Segmentation(object):
                 largest = contour
                 maximunArea = area
         return largest
+
+    def intersectBetweenRaysAndPolygon(self,polygons,rays):
+        listIntersections = []
+        for i,polygon in enumerate(polygons):
+            for ray in rays:
+                intersection = ray.intersect(polygon,i)
+                listIntersections.append(intersection)
+        return listIntersections
 
     def generateRays(self, centroid, lastContour, numL):
         coords = []
@@ -305,13 +204,29 @@ class Segmentation(object):
             self.writeImage(str(i), int(point[0]), int(point[1]), self.blackColor)
         return rays
 
-    def intersectBetweenRaysAndPolygon(self,polygons,rays):
-        listIntersections = []
-        for i,polygon in enumerate(polygons):
-            for ray in rays:
-                intersection = ray.intersect(polygon,i)
-                listIntersections.append(intersection)
-        return listIntersections
+    def generateCSV(self,distances, rayID):
+        #times = np.array(range(0, len(distances)))
+        times = np.linspace(0.1, 5.6, len(distances))
+        X = times.reshape(-1, 1)
+        Y = np.array(distances).reshape(-1,1)
+        print("Distancias csv: " + str(len(distances)))
+        csv_arr = []
+        csv_arr.append(["tiempo","distancia"])
+        for i,value in enumerate(X):
+            arr = []
+            x = X[i]
+            y = Y[i]
+            arr.append(x[0])
+            arr.append(y[0])
+            csv_arr.append(arr)
+        filename = 'distanciasRayo'+str(rayID)+'.csv'
+        myFile = open(filename, 'w')
+        with myFile:
+            writer = csv.writer(myFile)
+            writer.writerows(csv_arr)
+        #df = pd.read_csv(filename)
+        #print("DataFrame")
+        #print(df)
 
     def drawRayId(self,ray, rayId):
         x = 30
@@ -343,29 +258,6 @@ class Segmentation(object):
         #print(word5)
         self.writeImageText(word5, x, y+90, self.blackColor)
 
-    def generateCSV(self,distances, rayID):
-        times = np.array(range(0, len(distances)))
-        X = times.reshape(-1, 1)
-        Y = np.array(distances).reshape(-1,1)
-        print("Distancias csv: " + str(len(distances)))
-        csv_arr = []
-        csv_arr.append(["tiempo","distancia"])
-        for i,value in enumerate(X):
-            arr = []
-            x = X[i]
-            y = Y[i]
-            arr.append(x[0])
-            arr.append(y[0])
-            csv_arr.append(arr)
-        filename = 'distanciasRayo'+str(rayID)+'.csv'
-        myFile = open(filename, 'w')
-        with myFile:
-            writer = csv.writer(myFile)
-            writer.writerows(csv_arr)
-        #df = pd.read_csv(filename)
-        #print("DataFrame")
-        #print(df)
-
     def calcularDiferenciaDistancia(self, intersections):
         variacionDistancia = []
         i = 0
@@ -396,124 +288,6 @@ class Segmentation(object):
             speedList.append(v)
             i += 1
         return speedList
-
-    def linearRegressionDistances(self,rayList,rayID):
-        """! Metodo que entrena un algoritmo de regresion lineal
-        @param times Lista de valores en x
-        @param distances Lista de Valores en y
-        """
-        ray = rayList[rayID]
-        distances = ray.obtenerDistances();
-
-        times = []
-        for time in range(0,len(distances)):
-            times.append(time)
-        times = np.array(times)
-        regresion_lineal = LinearRegression()
-        # instruimos a la regresion lineal que aprenda de los datos (x,y)
-        #x = np.arange(0,len(distances),1)
-        regresion_lineal.fit(times.reshape(-1, 1),distances)
-
-        # vemos los parametros que ha estimado la regresion lineal
-        w = regresion_lineal.coef_
-        b = regresion_lineal.intercept_
-
-        print('w = ' + str(w))
-        print('b = ' + str(b))
-
-        # vamos a predecir y = regresion_lineal(5)
-        #nuevo_x = np.array([0])
-        prediccion = regresion_lineal.predict(times.reshape(-1, 1))
-        plt.scatter(times,prediccion)
-        print(prediccion)
-
-    def svrDistances(self,rayList,rayID):
-        ray = rayList[rayID]
-        distances = ray.obtenerDistances();
-        times = np.array(range(0,len(distances)))
-        print("times")
-        X = times.reshape(-1,1)
-        print(X)
-        y = np.array(distances).ravel()
-        print("distances")
-        print(y)
-        # Fit regression model
-        svr_rbf = SVR(kernel='rbf', C=100, gamma=0.1, epsilon=.1)
-        svr_lin = SVR(kernel='linear', C=100, gamma='auto')
-        svr_poly = SVR(kernel='poly', C=100, gamma='auto', degree=3, epsilon=.1, coef0=1)
-
-        # Look at the results
-        lw = 2
-        svrs = [svr_rbf, svr_lin, svr_poly]
-        kernel_label = ['RBF', 'Linear', 'Polynomial']
-        model_color = ['m', 'c', 'g']
-
-        fig, axes = plt.subplots(nrows=1, ncols=3, figsize=(15, 10), sharey=True)
-
-        for i, svr in enumerate(svrs):
-            axes[i].plot(X, svr.fit(X, y).predict(X), color=model_color[i], lw=lw,
-                         label='{} model'.format(kernel_label[i]))
-            axes[i].scatter(X[svr.support_], y[svr.support_], facecolor="none", edgecolor=model_color[i], s=50,
-                            label='{} support vectors'.format(kernel_label[i]))
-            axes[i].scatter(X[np.setdiff1d(np.arange(len(X)), svr.support_)],
-                            y[np.setdiff1d(np.arange(len(X)), svr.support_)], facecolor="none", edgecolor="k", s=50,
-                            label='other training data')
-            axes[i].legend(loc='upper center', bbox_to_anchor=(0.5, 1.1), ncol=1, fancybox=True, shadow=True)
-
-        fig.text(0.5, 0.04, 'data', ha='center', va='center')
-        fig.text(0.06, 0.5, 'target', ha='center', va='center', rotation='vertical')
-        fig.suptitle("Support Vector Regression", fontsize=14)
-        plt.show()
-
-    def multiLayerPerceptronRegressor(self,rayList,rayID):
-        ray = rayList[rayID]
-        distances = ray.obtenerDistances();
-        times = np.array(range(0,len(distances)))
-        print("times")
-        X = times.reshape(-1,1)
-        print(X)
-        y = np.array(distances).ravel()
-        print("distances")
-        print(y)
-        model = MLPRegressor(
-            hidden_layer_sizes=(10,), activation='relu', solver='adam', alpha=0.001, batch_size='auto',
-            learning_rate='constant', learning_rate_init=0.01, power_t=0.5, max_iter=1000, shuffle=True,
-            random_state=9, tol=0.0001, verbose=False, warm_start=False, momentum=0.9, nesterovs_momentum=True,
-            early_stopping=False, validation_fraction=0.1, beta_1=0.9, beta_2=0.999, epsilon=1e-08)
-
-        training = model.fit(X,y)
-        predict_y = model.predict(X)
-        fig = plt.figure()
-        ax1 = fig.add_subplot(111)
-        ax1.scatter(X, y, s=1, c='b', marker="s", label='real')
-        ax1.scatter(X, predict_y, s=10, c='r', marker="o", label='NN Prediction')
-        plt.show()
-
-        """
-        X_train, X_test, y_train, y_test = train_test_split(X,y,test_size=0.30,random_state=0)
-        #fitting a MLP model to the data
-        model = MLPRegressor()
-        model.fit(X_train,y_train)
-        expected_y = y_test
-        predicted_y = model.predict(X_test)
-        plt.scatter(X_test,predicted_y)
-        plt.show()
-        """
-
-    def scaleContour(self, contour, scale, decrease=None):
-            M = cv2.moments(contour)
-            contourScaled = contour
-            if M['m00'] != 0:
-                cx = int(M['m10']/M['m00'])
-                cy = int(M['m01']/M['m00'])
-                contourNorm = contour - [cx, cy]
-                if decrease == None:
-                    contourScaled = contourNorm * scale
-                else:
-                    contourScaled = contourNorm / scale
-                contourScaled = contourScaled + [cx, cy]
-                contourScaled = contourScaled.astype(np.int32)
-            return contourScaled
 
     def drawPoints(self,intersections):
         for list in intersections:
@@ -659,3 +433,13 @@ class Segmentation(object):
         fontScale = 0.4
         espesor = 1
         cv2.putText(self.image, palabra, (x,y),fontFace, fontScale, color, espesor)
+
+    def resizeImage(self,resizeNumber):
+        img = cv2.imread("imagenPeque.png")
+        height = img.shape[0]
+        width = img.shape[1]
+        for i in range(resizeNumber):
+            resized = imutils.resize(img,height=height+10,width=width+50,inter=cv2.INTER_AREA)
+            height = resized.shape[0]
+            width = resized.shape[1]
+            cv2.imwrite("imagen"+str(i)+".png",resized)
