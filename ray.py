@@ -46,7 +46,7 @@ class Ray(object):
             #print(polygon)
         return self.intersectionsList
 
-    def obtenerDistances(self):
+    def getDistances(self):
         for intersection in self.intersectionsList:
             distance = intersection.distance
             self.distancesList.append(distance)
