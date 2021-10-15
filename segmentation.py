@@ -81,7 +81,8 @@ class segmentation(object):
             print('\n\n DISTANCES RAY TWO: ')
             print(len(distances))
             print(distances)
-            self.generarCSV(distances, rayId)
+            for rayId in range(numberRays):
+                self.generarCSV(distances, rayId)
             self.drawPoints(intersections)
             #plt.plot(distances)
             #plt.show()
