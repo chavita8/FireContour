@@ -132,17 +132,24 @@ class segmentation(object):
 
     def deformContours(self, centroid):
         contoursListCurrent = self.contoursList
+        cant = len(contoursListCurrent)
+        limite = cant/3
+        contador = 0
         aux = 0
         for cnt in contoursListCurrent:
             if aux + 1 < len(contoursListCurrent):
                 contour1 = contoursListCurrent[aux]
                 contour2 = contoursListCurrent[aux + 1]
-                #newContour = self.joinContoursCenter(centroid, contour1, contour2)
-                newContour = self.joinContoursRigth2(centroid, contour1, contour2)
-                #newContour = self.joinContoursLeft(centroid, contour1, contour2)
+                if contador >= 0 and contador <= limite:
+                    newContour = self.joinContoursCenter(centroid, contour1, contour2)
+                if contador > limite and contador <= limite*2:
+                    newContour = self.joinContoursRigth2(centroid, contour1, contour2)
+                if contador > limite*2 and contador <= limite*3:
+                    newContour = self.joinContoursLeft(centroid, contour1, contour2)
                 newContour2 = Contour(np.array(newContour), self.blueColor, "increase")
                 self.contoursListDeform.append(newContour2)
             aux = aux + 2
+            contador += 1
 
     def joinContoursCenter(self, centroid, contour1, contour2):
         aux = True
