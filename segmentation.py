@@ -69,10 +69,16 @@ class segmentation(object):
             raysList = self.generateRays(centroid, lastContour, numberRays)
             intersections = self.intersectBetweenRaysAndPolygon(polygons, raysList)
 
-            rayId = 2
+            rayId = 1
             ray = raysList[rayId]
             distances = ray.getDistances()
-            print('\n\n DISTANCES RAY: ')
+            print('\n\n DISTANCES RAY ONE: ')
+            print(len(distances))
+            print(distances)
+            rayId = 5
+            ray = raysList[rayId]
+            distances = ray.getDistances()
+            print('\n\n DISTANCES RAY TWO: ')
             print(len(distances))
             print(distances)
             self.generarCSV(distances, rayId)
@@ -301,16 +307,17 @@ class segmentation(object):
             poligonoShapely = Polygon(polygon)
             print("POLYGON VALID:" + str(poligonoShapely.is_valid))
             print(explain_validity(poligonoShapely))
-            poligonoShapely = geom_factory(lgeos.GEOSMakeValid(poligonoShapely.__geom__))
+            #poligonoShapely = geom_factory(lgeos.GEOSMakeValid(poligonoShapely.__geom__))
+            poligonoShapely = make_valid(poligonoShapely)
             print("is valid")
             print(poligonoShapely.is_valid)
             print(explain_validity(poligonoShapely))
             print(poligonoShapely)
-            ultimo = len(poligonoShapely)-1
+            ultimo = len(poligonoShapely.geoms)-1
             print("ultimo " + str(ultimo))
             for i in range(ultimo):
-                print(poligonoShapely[i])
-                listPolygonsShapely.append(poligonoShapely[i])
+                print(poligonoShapely.geoms[i])
+                listPolygonsShapely.append(poligonoShapely.geoms[i])
         multiPolygon = MultiPolygon(listPolygonsShapely)
         return (multiPolygon, largestContour.contour)
 
@@ -326,7 +333,8 @@ class segmentation(object):
 
     def intersectBetweenRaysAndPolygon(self, polygons, rays):
         listIntersections = []
-        for i, polygon in enumerate(polygons):
+        for i, polygon in enumerate(polygons.geoms):
+            """
             intersection = self.multiLineString.intersection(polygon)
             print("Intersection")
             print(intersection)
@@ -335,7 +343,6 @@ class segmentation(object):
             for ray in rays:
                 intersection = ray.intersect(polygon, i)
                 listIntersections.append(intersection)
-            """
         return listIntersections
 
     def segmentRedYellow(self, imageHSV):
@@ -454,25 +461,27 @@ class segmentation(object):
                     cv2.circle(self.image, (int(x), int(y)), 2, self.yellowColor, 2)
                     self.writeImage(str(intersection.contourId), int(x), int(y), self.cianColor)
             """
-            if isinstance(list, LineString):
-                if not list.is_empty:
-                    coords = list.coords;
-                    pointIni = coords[0]
-                    pointFin = coords[1]
-                    point1 = (int(pointIni[0]), int(pointIni[1]))
-                    point2 = (int(pointFin[0]), int(pointFin[1]))
-                    cv2.circle(self.image, point1, 2, self.yellowColor, 2)
-                    cv2.circle(self.image, point2, 2, self.yellowColor, 2)
-            else:
-                for intersection in list:
-                    if isinstance(intersection, LineString):
-                        coords = intersection.coords;
+            for intersect in list:
+                if isinstance(intersect.intersectionPoint, LineString):
+                    if not intersect.intersectionPoint.is_empty:
+                        coords = intersect.intersectionPoint.coords;
                         pointIni = coords[0]
                         pointFin = coords[1]
                         point1 = (int(pointIni[0]), int(pointIni[1]))
                         point2 = (int(pointFin[0]), int(pointFin[1]))
                         cv2.circle(self.image, point1, 2, self.yellowColor, 2)
                         cv2.circle(self.image, point2, 2, self.yellowColor, 2)
+                else:
+                    for intersectionShape in intersect.intersectionPoint.geoms:
+                        if isinstance(intersectionShape, LineString):
+                            if not intersectionShape.is_empty:
+                                coords = intersectionShape.coords;
+                                pointIni = coords[0]
+                                pointFin = coords[1]
+                                point1 = (int(pointIni[0]), int(pointIni[1]))
+                                point2 = (int(pointFin[0]), int(pointFin[1]))
+                                cv2.circle(self.image, point1, 2, self.yellowColor, 2)
+                                cv2.circle(self.image, point2, 2, self.yellowColor, 2)
 
     def calculateMiddlepoints(self, listaCoords, num):
         counter = num
