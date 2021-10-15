@@ -3,7 +3,7 @@ import numpy as np
 import math
 from shapely.geometry.point import Point
 import matplotlib.pyplot as plt
-from shapely.geometry import MultiPolygon, Polygon, MultiPoint, MultiLineString, LineString
+from shapely.geometry import MultiPolygon, Polygon, MultiPoint, MultiLineString, LineString, LinearRing
 from sklearn.linear_model import LinearRegression
 from sklearn.linear_model import TheilSenRegressor
 from sklearn.linear_model import RANSACRegressor
@@ -138,8 +138,8 @@ class segmentation(object):
                 contour1 = contoursListCurrent[aux]
                 contour2 = contoursListCurrent[aux + 1]
                 #newContour = self.joinContoursCenter(centroid, contour1, contour2)
-                newContour = self.joinContoursRigth(centroid, contour1, contour2)
-                # newContour = self.joinContoursLeft(centroid, contour1, contour2)
+                #newContour = self.joinContoursRigth(centroid, contour1, contour2)
+                newContour = self.joinContoursLeft(centroid, contour1, contour2)
                 newContour2 = Contour(np.array(newContour), self.blueColor, "increase")
                 self.contoursListDeform.append(newContour2)
             aux = aux + 2
@@ -150,6 +150,14 @@ class segmentation(object):
         contour1Aux = []
         contour2Aux = []
         contour3Aux = []
+        print("CENTROID :"+str(centroid))
+        print(centroid[0])
+        print(centroid[1]+100)
+        print(centroid[1]-100)
+        tupla1 = (centroid[0],centroid[1]+150)
+        tupla2 = (centroid[0],centroid[1]-300)
+        cv2.circle(self.image, tupla1, 3, self.pinkColor, 3)
+        cv2.circle(self.image, tupla2, 3, self.cianColor, 3)
         for cnt in contour2.contour:
             if cnt[0][1] < centroid[1]:
                 if aux == True:
@@ -164,6 +172,26 @@ class segmentation(object):
                 contour2Aux.append([[cnt[0][0], cnt[0][1]]])
         newContour.extend(contour2Aux)
         newContour.extend(contour3Aux)
+        return newContour
+
+    def joinContoursLeft(self, centroid, contour1, contour2):
+        aux = True
+        newContour = []
+        contour1Aux = []
+        contour2Aux = []
+        contour3Aux = []
+        print("centroide " + str(centroid))
+        for cnt in contour2.contour:
+            if cnt[0][0] < centroid[0]:
+                #print("CX " + str(centroid[0]))
+                #print("Cnt " + str(cnt[0][1]))
+                contour1Aux.append([[cnt[0][0], cnt[0][1]]])
+                newContour.append([[cnt[0][0], cnt[0][1]]])
+        for cnt in contour1.contour:
+            if cnt[0][0] > centroid[0]:
+                # print("CY "+ str(centroid[1]))
+                contour2Aux.append([[cnt[0][0], cnt[0][1]]])
+                newContour.append([[cnt[0][0], cnt[0][1]]])
         # print(("NEW CONTOUR: ") + str(len(newContour)))
         return newContour
 
@@ -246,27 +274,6 @@ class segmentation(object):
             counter -= 1
         return listaPoints
 
-    def joinContoursLeft(self, centroid, contour1, contour2):
-        aux = True
-        newContour = []
-        contour1Aux = []
-        contour2Aux = []
-        contour3Aux = []
-        print("centroide " + str(centroid))
-        for cnt in contour2.contour:
-            if cnt[0][1] > centroid[0]:
-                print("CX " + str(centroid[0]))
-                print("Cnt " + str(cnt[0][1]))
-                contour1Aux.append([[cnt[0][0], cnt[0][1]]])
-                newContour.append([[cnt[0][0], cnt[0][1]]])
-        for cnt in contour1.contour:
-            if cnt[0][1] < centroid[0]:
-                # print("CY "+ str(centroid[1]))
-                contour2Aux.append([[cnt[0][0], cnt[0][1]]])
-                newContour.append([[cnt[0][0], cnt[0][1]]])
-        # print(("NEW CONTOUR: ") + str(len(newContour)))
-        return newContour
-
     def shiftContour(self, contour, x, y):
         for i, value in enumerate(contour):
             contour[i][0][0] += x
@@ -307,17 +314,23 @@ class segmentation(object):
             poligonoShapely = Polygon(polygon)
             print("POLYGON VALID:" + str(poligonoShapely.is_valid))
             print(explain_validity(poligonoShapely))
-            #poligonoShapely = geom_factory(lgeos.GEOSMakeValid(poligonoShapely.__geom__))
-            poligonoShapely = make_valid(poligonoShapely)
-            print("is valid")
-            print(poligonoShapely.is_valid)
-            print(explain_validity(poligonoShapely))
-            print(poligonoShapely)
-            ultimo = len(poligonoShapely.geoms)-1
-            print("ultimo " + str(ultimo))
-            for i in range(ultimo):
-                print(poligonoShapely.geoms[i])
-                listPolygonsShapely.append(poligonoShapely.geoms[i])
+            if not poligonoShapely.is_valid:
+                #poligonoShapely = geom_factory(lgeos.GEOSMakeValid(poligonoShapely.__geom__))
+                poligonoShapely = make_valid(poligonoShapely)
+                print("is valid")
+                print(poligonoShapely.is_valid)
+                print(explain_validity(poligonoShapely))
+                print(poligonoShapely)
+                if isinstance(poligonoShapely, MultiPolygon):
+                    ultimo = len(poligonoShapely.geoms)-1
+                    print("ultimo " + str(ultimo))
+                    for i in range(ultimo):
+                        print(poligonoShapely.geoms[i])
+                        listPolygonsShapely.append(poligonoShapely.geoms[i])
+                else:
+                    listPolygonsShapely.append(poligonoShapely)
+            else:
+                listPolygonsShapely.append(poligonoShapely)
         multiPolygon = MultiPolygon(listPolygonsShapely)
         return (multiPolygon, largestContour.contour)
 
@@ -541,4 +554,6 @@ class segmentation(object):
         with myFile:
             writer = csv.writer(myFile)
             writer.writerows(csv_arr)
-        # df = pd.read_csv(filename)
+        # df = pd.read_csv(filename)s
+
+
