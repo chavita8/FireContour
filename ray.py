@@ -79,3 +79,12 @@ class Ray(object):
             distance = intersection.distance
             self.distancesList.append(distance)
         return self.distancesList
+
+    def getIntersections(self):
+        return self.intersectionsList;
+
+    def getDestinationPoint(self):
+        return self.destinationPoint;
+
+    def getOriginPoint(self):
+        return self.originPoint;

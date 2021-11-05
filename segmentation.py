@@ -69,19 +69,27 @@ class segmentation(object):
             raysList = self.generateRays(centroid, lastContour, numberRays)
             intersections = self.intersectBetweenRaysAndPolygon(polygons, raysList)
 
-            rayId = 1
-            ray = raysList[rayId]
-            distances = ray.getDistances()
-            print('\n\n DISTANCES RAY ONE: ')
-            print(len(distances))
-            print(distances)
-            rayId = 5
-            ray = raysList[rayId]
-            distances = ray.getDistances()
-            print('\n\n DISTANCES RAY TWO: ')
-            print(len(distances))
-            print(distances)
+            #rayId = 1
+            #ray = raysList[rayId]
+            #distances = ray.getDistances()
+            #print('\n\n DISTANCES RAY ONE: ')
+            #print(len(distances))
+            #print(distances)
+            #rayId = 5
+            #ray = raysList[rayId]
+            #distances = ray.getDistances()
+            #print('\n\n DISTANCES RAY TWO: ')
+            #print(len(distances))
+            #print(distances)
             for rayId in range(numberRays):
+                ray = raysList[rayId]
+                listIntersections = ray.getIntersections()
+                print("Intersections :"+ str(listIntersections))
+                destinationPoint = ray.getDestinationPoint()
+                print("DestinationPoint :"+ str(destinationPoint))
+                originPoint = ray.getOriginPoint()
+                print("OriginPoint :"+ str(originPoint))
+                distances = ray.getDistances()
                 self.generarCSV(distances, rayId)
             self.drawPoints(intersections)
             #plt.plot(distances)
@@ -144,9 +152,10 @@ class segmentation(object):
                 if contador >= 0 and contador <= limite:
                     newContour = self.joinContoursCenter(centroid, contour1, contour2)
                 if contador > limite and contador <= limite*2:
-                    newContour = self.joinContoursRigth2(centroid, contour1, contour2)
-                if contador > limite*2 and contador <= limite*3:
                     newContour = self.joinContoursLeft(centroid, contour1, contour2)
+                if contador > limite*2 and contador <= limite*3:
+                    newContour = self.joinContoursRigth2(centroid, contour1, contour2)
+
                 newContour2 = Contour(np.array(newContour), self.blueColor, "increase")
                 self.contoursListDeform.append(newContour2)
             aux = aux + 2
@@ -577,5 +586,3 @@ class segmentation(object):
             writer = csv.writer(myFile)
             writer.writerows(csv_arr)
         # df = pd.read_csv(filename)s
-
-
