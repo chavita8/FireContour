@@ -54,7 +54,7 @@ class segmentation(object):
             kernelmatrix = np.ones((5, 5), np.uint8)
             resultimage = cv2.dilate(cannyImageRed, kernelmatrix)
             cv2.imwrite("dilate.png", resultimage)
-            _, contours, _ = cv2.findContours(resultimage, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+            contours, _ = cv2.findContours(resultimage, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
             centroid = self.findCentroid(contours[0])
             cv2.circle(self.image, centroid, 3, self.whiteColor, 3)
 
@@ -90,7 +90,7 @@ class segmentation(object):
                 originPoint = ray.getOriginPoint()
                 print("OriginPoint :"+ str(originPoint))
                 distances = ray.getDistances()
-                self.generarCSV(distances, rayId)
+                self.generarCSV(distances,listIntersections, rayId)
             self.drawPoints(intersections)
             #plt.plot(distances)
             #plt.show()
@@ -128,7 +128,7 @@ class segmentation(object):
         height = resized.shape[0]
         width = resized.shape[1]
         # cv2.imwrite("imagen"+str(i)+".png",resized)
-        _, contours, _ = cv2.findContours(resized, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+        contours, _ = cv2.findContours(resized, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
         contours_list.append(contours)
         new_centroid = self.findCentroid(contours[0])
         diff_x = centroide[0] - new_centroid[0]
@@ -564,7 +564,7 @@ class segmentation(object):
         distancia = math.sqrt((xB - xA) ** 2 + (yB - yA) ** 2)
         return distancia
 
-    def generarCSV(self, distances, rayID):
+    def generarCSV(self, distances, points, rayID):
         print('\n\n DISTANCES CSV: ')
         print(len(distances))
         times = np.array(range(0, len(distances)))
@@ -572,13 +572,15 @@ class segmentation(object):
         X = times.reshape(-1, 1)
         Y = np.array(distances).reshape(-1, 1)
         csv_arr = []
-        csv_arr.append(["tiempo", "distancia"])
+        csv_arr.append(["tiempo", "distancia","punto"])
         for i, value in enumerate(X):
             arr = []
             x = X[i]
             y = Y[i]
+            point = points[i].intersectionPoint
             arr.append(x[0])
             arr.append(y[0])
+            arr.append(point)
             csv_arr.append(arr)
         filename = 'distanciasRayo' + str(rayID) + '.csv'
         myFile = open(filename, 'w')
