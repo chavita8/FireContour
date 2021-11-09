@@ -54,7 +54,7 @@ class segmentation(object):
             kernelmatrix = np.ones((5, 5), np.uint8)
             resultimage = cv2.dilate(cannyImageRed, kernelmatrix)
             cv2.imwrite("dilate.png", resultimage)
-            contours, _ = cv2.findContours(resultimage, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+            _, contours, _ = cv2.findContours(resultimage, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
             centroid = self.findCentroid(contours[0])
             cv2.circle(self.image, centroid, 3, self.whiteColor, 3)
 
@@ -83,14 +83,17 @@ class segmentation(object):
             #print(distances)
             for rayId in range(numberRays):
                 ray = raysList[rayId]
-                listIntersections = ray.getIntersections()
-                print("Intersections :"+ str(listIntersections))
-                destinationPoint = ray.getDestinationPoint()
-                print("DestinationPoint :"+ str(destinationPoint))
-                originPoint = ray.getOriginPoint()
-                print("OriginPoint :"+ str(originPoint))
-                distances = ray.getDistances()
-                self.generarCSV(distances,listIntersections, rayId)
+                ray.generarCSV()
+                """
+                    listIntersections = ray.getIntersections()
+                    print("Intersections :"+ str(listIntersections))
+                    destinationPoint = ray.getDestinationPoint()
+                    print("DestinationPoint :"+ str(destinationPoint))
+                    originPoint = ray.getOriginPoint()
+                    print("OriginPoint :"+ str(originPoint))
+                    distances = ray.getDistances()
+                    self.generarCSV(distances,listIntersections, rayId)
+                """
             self.drawPoints(intersections)
             #plt.plot(distances)
             #plt.show()
@@ -128,7 +131,7 @@ class segmentation(object):
         height = resized.shape[0]
         width = resized.shape[1]
         # cv2.imwrite("imagen"+str(i)+".png",resized)
-        contours, _ = cv2.findContours(resized, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
+        _, contours, _ = cv2.findContours(resized, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
         contours_list.append(contours)
         new_centroid = self.findCentroid(contours[0])
         diff_x = centroide[0] - new_centroid[0]
