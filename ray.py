@@ -24,8 +24,8 @@ class Ray(object):
     def intersect(self, polygon, id):
         #intersectionShape = polygon.exterior.intersection(self.toShapelyLine())
         intersectionShape = self.toShapelyLine().intersection(polygon)
-        print("intersection line")
-        print(intersectionShape)
+        print("INTERSECTION SHAPE")
+        print(type(intersectionShape))
         centroide = self.originPoint
         if isinstance(intersectionShape, LineString):
             if not intersectionShape.is_empty:
@@ -40,6 +40,19 @@ class Ray(object):
                 intersection = Intersection(id,intersectionShape,distance)
                 self.intersectionsList.append(intersection)
         else:
+            lineStringIni = intersectionShape.geoms[0]
+            pointIni = lineStringIni.coords[0]
+            point1 = Point(int(pointIni[0]), int(pointIni[1]))
+            lineStringFinal = intersectionShape.geoms[1]
+            pointFin = lineStringFinal.coords[1]
+            point2 = Point(int(pointFin[0]), int(pointFin[1]))
+            distance = centroide.distance(point2)
+            intersectionShape = LineString([point1, point2])
+            intersection = Intersection(id,intersectionShape,distance)
+            self.intersectionsList.append(intersection)
+
+
+            """
             for intersection in intersectionShape.geoms:
                 if isinstance(intersection, LineString):
                     if not intersection.is_empty:
@@ -53,6 +66,7 @@ class Ray(object):
                         distance = centroide.distance(point2)
                         intersection = Intersection(id, intersectionShape, distance)
                         self.intersectionsList.append(intersection)
+            """
 
         """
         if isinstance(intersectionShape, Point):
