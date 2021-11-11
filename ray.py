@@ -40,18 +40,17 @@ class Ray(object):
                 intersection = Intersection(id,intersectionShape,distance)
                 self.intersectionsList.append(intersection)
         else:
+            size_multiline = len(intersectionShape.geoms)
             lineStringIni = intersectionShape.geoms[0]
             pointIni = lineStringIni.coords[0]
             point1 = Point(int(pointIni[0]), int(pointIni[1]))
-            lineStringFinal = intersectionShape.geoms[1]
+            lineStringFinal = intersectionShape.geoms[size_multiline-1]
             pointFin = lineStringFinal.coords[1]
             point2 = Point(int(pointFin[0]), int(pointFin[1]))
             distance = centroide.distance(point2)
             intersectionShape = LineString([point1, point2])
             intersection = Intersection(id,intersectionShape,distance)
             self.intersectionsList.append(intersection)
-
-
             """
             for intersection in intersectionShape.geoms:
                 if isinstance(intersection, LineString):
