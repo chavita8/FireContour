@@ -66,17 +66,18 @@ class Ray(object):
                     if not intersection.is_empty:
                         lineString = intersectionShape.geoms[sizeMultilines - 1]
                         for i in range(2):
-                            coord = lineString.coords[i]
-                            point = Point(int(coord[0]), int(coord[1]))
-                            distance = centroide.distance(point)
-                            if distance > currentDistance:
-                                lineStringStr = "LINESTRING ("+ str(centroide.x) + " "  + str(centroide.y) + ", " + str(point.x) + " " + str(point.y) + ")"
-                                lineString = loads(lineStringStr)
-                                intersectionObj = Intersection(id, lineString, distance)
-                                self.intersectionsList.append(intersectionObj)
-                                sizeIntersections = len(self.intersectionsList)
-                                currentIntersection = self.intersectionsList[sizeIntersections - 1]
-                                currentDistance = currentIntersection.distance
+                            if i < len(lineString.coords):
+                                coord = lineString.coords[i]
+                                point = Point(int(coord[0]), int(coord[1]))
+                                distance = centroide.distance(point)
+                                if distance > currentDistance:
+                                    lineStringStr = "LINESTRING ("+ str(centroide.x) + " "  + str(centroide.y) + ", " + str(point.x) + " " + str(point.y) + ")"
+                                    lineString = loads(lineStringStr)
+                                    intersectionObj = Intersection(id, lineString, distance)
+                                    self.intersectionsList.append(intersectionObj)
+                                    sizeIntersections = len(self.intersectionsList)
+                                    currentIntersection = self.intersectionsList[sizeIntersections - 1]
+                                    currentDistance = currentIntersection.distance
 
 
         """
