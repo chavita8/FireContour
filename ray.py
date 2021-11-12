@@ -3,7 +3,7 @@ from shapely.geometry import LineString, MultiLineString
 from intersection import Intersection
 import numpy as np
 import csv
-
+from shapely.wkt import loads
 
 class Ray(object):
     def __init__(self, rayId, originPoint, destinationPoint):
@@ -24,9 +24,12 @@ class Ray(object):
     def intersect(self, polygon, id):
         #intersectionShape = polygon.exterior.intersection(self.toShapelyLine())
         intersectionShape = self.toShapelyLine().intersection(polygon)
-        print("INTERSECTION SHAPE")
-        print(type(intersectionShape))
+        #print("INTERSECTION SHAPE")
+        #print(type(intersectionShape))
         centroide = self.originPoint
+        sizeIntersections = 0
+        currentIntersection = 0
+        currentDistance = 0
         if isinstance(intersectionShape, LineString):
             if not intersectionShape.is_empty:
                 coords = intersectionShape.coords;
@@ -37,9 +40,14 @@ class Ray(object):
                 #print("point: ")
                 #print(point2)
                 distance = centroide.distance(point2)
-                intersection = Intersection(id,intersectionShape,distance)
-                self.intersectionsList.append(intersection)
+                if distance > currentDistance:
+                    intersectionObj = Intersection(id,intersectionShape,distance)
+                    self.intersectionsList.append(intersectionObj)
+                    sizeIntersections = len(self.intersectionsList)
+                    currentIntersection = self.intersectionsList[sizeIntersections - 1]
+                    currentDistance = currentIntersection.distance
         else:
+            """
             size_multiline = len(intersectionShape.geoms)
             lineStringIni = intersectionShape.geoms[0]
             pointIni = lineStringIni.coords[0]
@@ -52,20 +60,24 @@ class Ray(object):
             intersection = Intersection(id,intersectionShape,distance)
             self.intersectionsList.append(intersection)
             """
+            sizeMultilines = len(intersectionShape.geoms)
             for intersection in intersectionShape.geoms:
                 if isinstance(intersection, LineString):
                     if not intersection.is_empty:
-                        coords = intersection.coords;
-                        pointIni = coords[0]
-                        pointFin = coords[1]
-                        point1 = Point(int(pointIni[0]), int(pointIni[1]))
-                        point2 = Point(int(pointFin[0]), int(pointFin[1]))
-                        #print("point: ")
-                        #print(point2)
-                        distance = centroide.distance(point2)
-                        intersection = Intersection(id, intersectionShape, distance)
-                        self.intersectionsList.append(intersection)
-            """
+                        lineString = intersectionShape.geoms[sizeMultilines - 1]
+                        for i in range(2):
+                            coord = lineString.coords[i]
+                            point = Point(int(coord[0]), int(coord[1]))
+                            distance = centroide.distance(point)
+                            if distance > currentDistance:
+                                lineStringStr = "LINESTRING ("+ str(centroide.x) + " "  + str(centroide.y) + ", " + str(point.x) + " " + str(point.y) + ")"
+                                lineString = loads(lineStringStr)
+                                intersectionObj = Intersection(id, lineString, distance)
+                                self.intersectionsList.append(intersectionObj)
+                                sizeIntersections = len(self.intersectionsList)
+                                currentIntersection = self.intersectionsList[sizeIntersections - 1]
+                                currentDistance = currentIntersection.distance
+
 
         """
         if isinstance(intersectionShape, Point):
@@ -105,23 +117,18 @@ class Ray(object):
         return self.originPoint;
 
     def generarCSV(self):
-        print('\n\n DISTANCES CSV: ')
-        self.getDistances()
-        print(len(self.distancesList))
-        times = np.array(range(0, len(self.distancesList)))
-        # times = np.linspace(0.1, 50.0, len(distances))
-        X = times.reshape(-1, 1)
-        Y = np.array(self.distancesList).reshape(-1, 1)
+        print('\n\n DISTANCES CSV ' + str(self.rayId))
+        print(len(self.intersectionsList))
         csv_arr = []
         csv_arr.append(["tiempo", "distancia","punto"])
-        for i, value in enumerate(X):
+        for intersection in self.intersectionsList:
             arr = []
-            x = X[i]
-            y = Y[i]
-            intersection = self.intersectionsList[i].intersectionPoint
-            arr.append(x[0])
-            arr.append(y[0])
-            arr.append(intersection)
+            x = intersection.contourId
+            y = intersection.distance
+            point = intersection.intersectionPoint
+            arr.append(x)
+            arr.append(y)
+            arr.append(point)
             csv_arr.append(arr)
         filename = 'distanciasRayo' + str(self.rayId) + '.csv'
         myFile = open(filename, 'w')
