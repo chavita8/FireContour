@@ -27,26 +27,30 @@ class Ray(object):
         #print("INTERSECTION SHAPE")
         #print(type(intersectionShape))
         centroide = self.originPoint
-        sizeIntersections = 0
-        currentIntersection = 0
-        currentDistance = 0
+
         if isinstance(intersectionShape, LineString):
-            if not intersectionShape.is_empty:
-                coords = intersectionShape.coords;
-                pointIni = coords[0]
-                pointFin = coords[1]
-                point1 = Point(int(pointIni[0]), int(pointIni[1]))
-                point2 = Point(int(pointFin[0]), int(pointFin[1]))
-                #print("point: ")
-                #print(point2)
-                distance = centroide.distance(point2)
-                if distance > currentDistance:
-                    intersectionObj = Intersection(id,intersectionShape,distance)
-                    self.intersectionsList.append(intersectionObj)
-                    sizeIntersections = len(self.intersectionsList)
-                    currentIntersection = self.intersectionsList[sizeIntersections - 1]
-                    currentDistance = currentIntersection.distance
+            intersection = intersectionShape
         else:
+            sizeMultiline = len(intersectionShape.geoms)
+            intersection = intersectionShape.geoms[sizeMultiline-1]
+
+        if not intersection.is_empty:
+            coords = intersection.coords;
+            pointIni = coords[0]
+            pointFin = coords[1]
+            point1 = Point(int(pointIni[0]), int(pointIni[1]))
+            point2 = Point(int(pointFin[0]), int(pointFin[1]))
+            #print("point: ")
+            #print(point2)
+            distance = centroide.distance(point2)
+            lineStringStr = "LINESTRING (" + str(centroide.x) + " " + str(centroide.y) + ", " + str(point2.x) + " " + str(point2.y) + ")"
+            lineString = loads(lineStringStr)
+            intersectionObj = Intersection(id,lineString,distance)
+            self.intersectionsList.append(intersectionObj)
+            sizeIntersections = len(self.intersectionsList)
+            currentIntersection = self.intersectionsList[sizeIntersections - 1]
+            currentDistance = currentIntersection.distance
+        #else:
             """
             size_multiline = len(intersectionShape.geoms)
             lineStringIni = intersectionShape.geoms[0]
@@ -60,24 +64,23 @@ class Ray(object):
             intersection = Intersection(id,intersectionShape,distance)
             self.intersectionsList.append(intersection)
             """
-            sizeMultilines = len(intersectionShape.geoms)
+            #sizeMultilines = len(intersectionShape.geoms)
+            """
             for intersection in intersectionShape.geoms:
                 if isinstance(intersection, LineString):
                     if not intersection.is_empty:
                         lineString = intersectionShape.geoms[sizeMultilines - 1]
-                        for i in range(2):
-                            if i < len(lineString.coords):
-                                coord = lineString.coords[i]
-                                point = Point(int(coord[0]), int(coord[1]))
-                                distance = centroide.distance(point)
-                                if distance > currentDistance:
-                                    lineStringStr = "LINESTRING ("+ str(centroide.x) + " "  + str(centroide.y) + ", " + str(point.x) + " " + str(point.y) + ")"
-                                    lineString = loads(lineStringStr)
-                                    intersectionObj = Intersection(id, lineString, distance)
-                                    self.intersectionsList.append(intersectionObj)
-                                    sizeIntersections = len(self.intersectionsList)
-                                    currentIntersection = self.intersectionsList[sizeIntersections - 1]
-                                    currentDistance = currentIntersection.distance
+                        coord = lineString.coords[1]
+                        point = Point(int(coord[0]), int(coord[1]))
+                        distance = centroide.distance(point)
+                        lineStringStr = "LINESTRING ("+ str(centroide.x) + " "  + str(centroide.y) + ", " + str(point.x) + " " + str(point.y) + ")"
+                        lineString = loads(lineStringStr)
+                        intersectionObj = Intersection(id, lineString, distance)
+                        self.intersectionsList.append(intersectionObj)
+                        sizeIntersections = len(self.intersectionsList)
+                        currentIntersection = self.intersectionsList[sizeIntersections - 1]
+                        currentDistance = currentIntersection.distance
+            """
 
 
         """
