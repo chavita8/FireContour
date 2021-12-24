@@ -4,25 +4,14 @@ import math
 from shapely.geometry.point import Point
 import matplotlib.pyplot as plt
 from shapely.geometry import MultiPolygon, Polygon, MultiPoint, MultiLineString, LineString, LinearRing, GeometryCollection
-from sklearn.linear_model import LinearRegression
-from sklearn.linear_model import TheilSenRegressor
-from sklearn.linear_model import RANSACRegressor
-from sklearn.svm import SVR
-from sklearn.neural_network import MLPRegressor
-from sklearn.neural_network import MLPClassifier
-from sklearn.model_selection import train_test_split
 from contour import Contour
 import random
-import time
-import csv
 import imutils
 from shapely.validation import explain_validity
 from shapely.validation import make_valid
 from shapely.geometry.base import geom_factory
 from shapely.geos import lgeos
-
 from ray import Ray
-
 
 class segmentation(object):
     def __init__(self):
@@ -35,12 +24,9 @@ class segmentation(object):
         self.yellowColor = (0, 255, 255)
         self.cianColor = (255, 255, 0)
         self.pinkColor = (255, 0, 255)
-        self.contoursList = []
-        self.contoursListCenter = []
-        self.contoursListLeft = []
-        self.contoursListRight = []
-        self.contoursListDeform = []
-        self.multiLineString = []
+        self.grayColor = (128, 128, 128)
+        self.centroidList = []
+        self.pointList = []
 
     def segmentImage(self, numberRays, numberContours):
         if np.any(self.image):
@@ -55,50 +41,92 @@ class segmentation(object):
             resultimage = cv2.dilate(cannyImageRed, kernelmatrix)
             cv2.imwrite("dilate.png", resultimage)
             _, contours, _ = cv2.findContours(resultimage, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-            centroid = self.findCentroid(contours[0])
-            cv2.circle(self.image, centroid, 3, self.whiteColor, 3)
+            centroidIni = self.findCentroid(contours[0])
+            cv2.circle(self.image, centroidIni, 3, self.whiteColor, 3)
+            print("Centroide Inicial: " + str(centroidIni))
 
-            self.resizeContoursEvents(resultimage, numberContours, centroid)
-            # self.resizeContoursCenter(resultimage,numberContours,centroid)
-            # self.resizeContoursLeft(resultimage,numberContours,centroid)
-            # self.resizeContoursRigth(resultimage,numberContours,centroid)
+            # f(x) = ax^2 + bx + c
+            # f(x) = -2x ^ 2 + 3x + 0
+            listVarY = self.deformFuncionParabola(-2, 3, 0, numberContours)
+            print(listVarY)
 
-            polygons, res = self.generatePolygons()
+            alphaL = 30
+            alphaR = 0
+            largestContour = None
+            maximunArea = -1
+            multiPolygonList = []
+
+            limite = numberContours / 3
+            contador = 0
+            for c in range(numberContours):
+                randR = random.randint(60, 120)
+                alphaR = alphaR + randR
+                randL = random.randint(150, 280)
+                alphaL = alphaL + randL
+                contour1 = self.resizeContours(resultimage, centroidIni, alphaR, 0)
+                contour2 = self.resizeContours(resultimage, centroidIni, alphaL, 0)
+                if numberContours > 5:
+                    if contador >= 0 and contador <= limite:
+                        contourDeform = self.deformContours(contour1, contour2, centroidIni, 0)
+                    if contador > limite and contador <= limite * 2:
+                        contourDeform = self.deformContours(contour1, contour2, centroidIni, 1)
+                    if contador > limite * 2 and contador <= limite * 3:
+                        contourDeform = self.deformContours(contour1, contour2, centroidIni, 2)
+                    contador+=1
+                else:
+                    contourDeform = self.deformContours(contour1, contour2, centroidIni, 0)
+
+                area = contourDeform.contourArea()
+
+            #for i in range(len(listVarY)):
+            #    randR = random.randint(60, 120)
+            #    alphaR = alphaR + randR
+            #    randL = random.randint(150, 280)
+            #    alphaL = alphaL + randL
+            #    if i+1 < len(listVarY):
+            #        y1 = listVarY[i]
+            #        y2 = listVarY[i+1]
+            #        if y1 < y2 :
+            #            contour1 = self.resizeContours(resultimage, centroidIni, alphaR, 0)
+            #            contour2 = self.resizeContours(resultimage, centroidIni, alphaL, 0)
+            #            contourDeform = self.deformContours(contour1, contour2, centroidIni, 0)
+            #        else:
+            #            contour1 = self.resizeContours(resultimage, centroidIni, alphaR, 1)
+            #            contourDeform = self.deformContourDecrease(contour1)
+
+                if area > maximunArea:
+                    largestContour = contourDeform
+                    maximunArea = area
+
+                polygons = self.generatePolygon(contourDeform)
+                for p in polygons.geoms:
+                    #print(type(p))
+                    multiPolygonList.append(p)
+
+            multiPolygons = MultiPolygon(multiPolygonList)
             lastContour = []
-            lastContour.append(res)
-            raysList = self.generateRays(centroid, lastContour, numberRays)
-            intersections = self.intersectBetweenRaysAndPolygon(polygons, raysList)
+            lastContour.append(largestContour.contour)
+            #print("POLYGONS :")
+            #print(len(polygons))
+            centroidCurrent = centroidIni
+            distanceMax = 50
+            for centroid in self.centroidList:
+                distanceCentroid = self.distanceBetweenTwoPoints(centroidCurrent,centroid)
+                print("Centroid :"+str(centroid))
+                print("DistanceCentroid :" + str(distanceCentroid))
+                if distanceCentroid > distanceMax:
+                    centroidCurrent = centroid
+                    print("CentroidCurrent :" + str(centroidCurrent))
 
-            #rayId = 1
-            #ray = raysList[rayId]
-            #distances = ray.getDistances()
-            #print('\n\n DISTANCES RAY ONE: ')
-            #print(len(distances))
-            #print(distances)
-            #rayId = 5
-            #ray = raysList[rayId]
-            #distances = ray.getDistances()
-            #print('\n\n DISTANCES RAY TWO: ')
-            #print(len(distances))
-            #print(distances)
-            for rayId in range(numberRays):
-                ray = raysList[rayId]
-                ray.generarCSV()
-                """
-                    listIntersections = ray.getIntersections()
-                    print("Intersections :"+ str(listIntersections))
-                    destinationPoint = ray.getDestinationPoint()
-                    print("DestinationPoint :"+ str(destinationPoint))
-                    originPoint = ray.getOriginPoint()
-                    print("OriginPoint :"+ str(originPoint))
-                    distances = ray.getDistances()
-                    self.generarCSV(distances,listIntersections, rayId)
-                """
+            raysList = self.generateRays(centroidCurrent, lastContour, numberRays)
+            intersections = self.intersectBetweenRaysAndPolygon(multiPolygons, raysList)
             self.drawPoints(intersections)
-            #plt.plot(distances)
-            #plt.show()
-            print("MultiLineString")
-            print(self.multiLineString)
+
+            pointList1 = self.predictContour(raysList, numberContours)
+            #pointList2 = self.predictContour(raysList, 6)
+            self.drawContour(pointList1)
+            #self.drawContour(pointList2)
+
             cv2.imwrite("output.jpg", self.image)
             output = cv2.imread("output.jpg")
             cv2.imshow("image",self.image)
@@ -106,63 +134,72 @@ class segmentation(object):
         else:
             print("error loading image")
 
-    def resizeContoursEvents(self, img, numberContours, centroid):
-        contours = numberContours * 2
-        alphaL = 30
-        alphaR = 0
-        for i in range(contours):
-            if i % 2 != 0:
-                randL = random.randint(150, 280)
-                alphaL = alphaL + randL
-                self.resizeContours(img, centroid, alphaL)
-            else:
-                randR = random.randint(60, 120)
-                alphaR = alphaR + randR
-                self.resizeContours(img, centroid, alphaR)
-        self.deformContours(centroid)
+    def predictContour(self, raysList, time_predict):
+        pointList = []
+        print("----------Dataset -----------")
+        for ray in raysList:
+            predicted_point = ray.predictPoint(time_predict)
+            pointList.append(predicted_point)
+        return pointList
 
-    def resizeContours(self, img, centroide, alpha):
-        contours_list = []
+    def drawContour(self, pointList):
+        sizeList = len(pointList)
+        for i, value in enumerate(pointList):
+            if i + 1 < sizeList:
+                point1 = pointList[i]
+                point2 = pointList[i + 1]
+                cv2.circle(self.image, (int(point1[0]), int(point1[1])), 2, self.cianColor, 3)
+                cv2.circle(self.image, (int(point2[0]), int(point2[1])), 2, self.cianColor, 3)
+                cv2.line(self.image, (int(point1[0]), int(point1[1])), (int(point2[0]), int(point2[1])), self.pinkColor, 2)
+
+        pointIni = pointList[0]
+        pointFin = pointList[sizeList - 1]
+        cv2.line(self.image, (int(pointIni[0]), int(pointIni[1])), (int(pointFin[0]), int(pointFin[1])), self.pinkColor, 2)
+
+    def resizeContours(self, img, centroid, alpha, mode):
         height = img.shape[0]
         width = img.shape[1]
-        print("centroide inicial: " + str(centroide))
-        resized = imutils.resize(img, width=width + alpha, inter=cv2.INTER_AREA)
+        if mode == 0:
+            resized = imutils.resize(img, width=width + alpha, inter=cv2.INTER_AREA)
+        elif mode == 1:
+            resized = imutils.resize(img, width=width - alpha, inter=cv2.INTER_AREA)
         # resized = cv2.resize(img,(width+alpha,height),interpolation=cv2.INTER_AREA)
         height = resized.shape[0]
         width = resized.shape[1]
         # cv2.imwrite("imagen"+str(i)+".png",resized)
         _, contours, _ = cv2.findContours(resized, cv2.RETR_TREE, cv2.CHAIN_APPROX_NONE)
-        contours_list.append(contours)
+
         new_centroid = self.findCentroid(contours[0])
-        diff_x = centroide[0] - new_centroid[0]
-        diff_y = centroide[1] - new_centroid[1]
+        diff_x = centroid[0] - new_centroid[0]
+        diff_y = centroid[1] - new_centroid[1]
         self.shiftContour(contours[0], diff_x, diff_y)
-        print("nuevo centroide: " + str(new_centroid))
-        # print("diferencia centroide: " + str((diff_x, diff_y)))
         contour = Contour(contours[0], self.blueColor, "increase")
-        self.contoursList.append(contour)
+        return contour
 
-    def deformContours(self, centroid):
-        contoursListCurrent = self.contoursList
-        cant = len(contoursListCurrent)
-        limite = cant/3
-        contador = 0
-        aux = 0
-        for cnt in contoursListCurrent:
-            if aux + 1 < len(contoursListCurrent):
-                contour1 = contoursListCurrent[aux]
-                contour2 = contoursListCurrent[aux + 1]
-                if contador >= 0 and contador <= limite:
-                    newContour = self.joinContoursCenter(centroid, contour1, contour2)
-                if contador > limite and contador <= limite*2:
-                    newContour = self.joinContoursLeft(centroid, contour1, contour2)
-                if contador > limite*2 and contador <= limite*3:
-                    newContour = self.joinContoursRigth2(centroid, contour1, contour2)
+    def deformContours(self, contour1, contour2, centroid, mode):
+        if mode == 0:
+            newContour = self.joinContoursCenter(centroid, contour1, contour2)
+        if mode == 1:
+            newContour = self.joinContoursLeft(centroid, contour1, contour2)
+        if mode == 2:
+            newContour = self.joinContoursRigth(centroid, contour1, contour2)
+        newContour2 = Contour(np.array(newContour), self.blueColor, "increase")
+        return newContour2
 
-                newContour2 = Contour(np.array(newContour), self.blueColor, "increase")
-                self.contoursListDeform.append(newContour2)
-            aux = aux + 2
-            contador += 1
+    def deformContourDecrease(self, contour1):
+        newContour = Contour(np.array(contour1), self.whiteColor, "decrease")
+        return newContour
+
+    def deformFuncionParabola(self, a, b, c, rangoX):
+        listY = []
+        listX = list(range(-rangoX, rangoX))
+        print(listX)
+        for x in listX:
+            ax = a*math.pow(x,2)
+            bx = b*x
+            y = ax + bx + c
+            listY.append(y)
+        return listY
 
     def joinContoursCenter(self, centroid, contour1, contour2):
         aux = True
@@ -170,14 +207,7 @@ class segmentation(object):
         contour1Aux = []
         contour2Aux = []
         contour3Aux = []
-        #print("CENTROID :"+str(centroid))
-        #print(centroid[0])
-        #print(centroid[1]+100)
-        #print(centroid[1]-100)
-        #tupla1 = (centroid[0],centroid[1]+150)
-        #tupla2 = (centroid[0],centroid[1]-300)
-        #cv2.circle(self.image, tupla1, 3, self.pinkColor, 3)
-        #cv2.circle(self.image, tupla2, 3, self.cianColor, 3)
+        print("GROW CENTER")
         for cnt in contour2.contour:
             if cnt[0][1] < centroid[1]:
                 if aux == True:
@@ -190,193 +220,98 @@ class segmentation(object):
         for cnt in contour1.contour:
             if cnt[0][1] > centroid[1]:
                 contour2Aux.append([[cnt[0][0], cnt[0][1]]])
+                tupla = (cnt[0][0], cnt[0][1])
+                #cv2.circle(self.image, tupla, 3, self.grayColor, 3)
         newContour.extend(contour2Aux)
         newContour.extend(contour3Aux)
+        #cv2.drawContours(self.image, contour3Aux, -1, self.pinkColor, 3)
         return newContour
 
     def joinContoursLeft(self, centroid, contour1, contour2):
         newContour = []
-        print("centroide " + str(centroid))
+        print("GROW LEFT")
         for cnt in contour2.contour:
             if cnt[0][0] < centroid[0]:
                 newContour.append([[cnt[0][0], cnt[0][1]]])
         for cnt in contour1.contour:
             if cnt[0][0] > centroid[0]:
                 newContour.append([[cnt[0][0], cnt[0][1]]])
-        return newContour
-
-    def joinContoursRigth2(self, centroid, contour1, contour2):
-        newContour = []
-        print("centroide " + str(centroid))
-        for cnt in contour1.contour:
-            if cnt[0][0] <= centroid[0]:
-                newContour.append([[cnt[0][0], cnt[0][1]]])
-        for cnt in contour2.contour:
-            if cnt[0][0] >= centroid[0]:
-                newContour.append([[cnt[0][0], cnt[0][1]]])
+                tupla = (cnt[0][0], cnt[0][1])
+                #cv2.circle(self.image, tupla, 3, self.pinkColor, 3)
         return newContour
 
     def joinContoursRigth(self, centroid, contour1, contour2):
-        aux = 0
-        var = 0
-        extreme = []
         newContour = []
-        contour1Aux = []
-        contour2Aux = []
-        centroid = (centroid[0] - 8, centroid[1])
-        print("contour2: " + str(contour2.contour))
+        print("GROW RIGTH")
         for cnt in contour1.contour:
             if cnt[0][0] <= centroid[0]:
-                contour1Aux.append([[cnt[0][0], cnt[0][1]]])
-                #newContour.append([[cnt[0][0], cnt[0][1]]])
-                # print("aux "+ str(aux))
-                # if aux == 15:
-                #  cv2.circle(self.image, (cnt[0][0],cnt[0][1]), 3, self.whiteColor, 3)
-                # if aux == 450:
-                #  cv2.circle(self.image, (cnt[0][0],cnt[0][1]), 3, self.whiteColor, 3)
-            aux = aux + 1
+                newContour.append([[cnt[0][0], cnt[0][1]]])
         for cnt in contour2.contour:
-            print("point: " + str([[cnt[0][0], cnt[0][1]]]))
             if cnt[0][0] >= centroid[0]:
-                #newContour.append([[cnt[0][0], cnt[0][1]]])
-                contour2Aux.append([[cnt[0][0], cnt[0][1]]])
-                if cnt[0][0] == centroid[0] and cnt[0][1] < centroid[1]:
-                    inicio = [cnt[0][0], cnt[0][1]]
-                if cnt[0][0] == centroid[0] and cnt[0][1] > centroid[1]:
-                    extreme = [cnt[0][0], cnt[0][1]]
-            var = var + 1
-        # Contour2
-        lenContour2Aux = len(contour2Aux)
-        ultimaPos = lenContour2Aux - 1
-        p1Contour2 = inicio
-        p2Contour2 = extreme
-        # print("extremo1"+str(type(p1Contour2)))
-        # print("extremo2"+str(type(p2Contour2)))
-        # Contour1
-        lenContour1Aux = len(contour1Aux)
-        ultimaPos1 = lenContour1Aux - 1
-        p1Contour1 = contour1Aux[0][0]
-        p2Contour1 = contour1Aux[ultimaPos1][0]
-        # print("extremo1 C1 "+str(p1Contour1))
-        # print("extremo2 C1 "+str(p2Contour1))
-        listaPoints1 = [p1Contour2, p1Contour1]
-        listaPoints2 = [p2Contour1, p2Contour2]
-        distance = int(self.distanceBetweenTwoPoints(p1Contour2, p1Contour1))
-        distance2 = int(self.distanceBetweenTwoPoints(p2Contour1, p2Contour2))
-        listaNew = self.calculatePoints(listaPoints1, distance * 2)
-        listaNew2 = self.calculatePoints(listaPoints2, distance2 * 2)
-        for cnt in contour1Aux:
-            newContour.append(cnt)
-        for point in listaNew2:
-            if not ([[point[0],point[1]]]) in newContour:
-                newContour.append(([[point[0],point[1]]]))
-        for cnt in contour2Aux:
-            if not cnt in newContour:
-                newContour.append(cnt)
-        for point in listaNew:
-            if not ([[point[0],point[1]]]) in newContour:
-                newContour.append(([[point[0],point[1]]]))
-        # print(("NEW CONTOUR: ") + str(len(newContour)))
-        # print(newContour)
+                newContour.append([[cnt[0][0], cnt[0][1]]])
         return newContour
-
-    def calculatePoints(self, listaPoints, num):
-        counter = num
-        i = 0
-        while counter > 0:
-            if i + 1 < len(listaPoints):
-                p1 = listaPoints[i]
-                p2 = listaPoints[i + 1]
-                pM = self.middlePoint(p1, p2)
-                listaPoints.insert(i + 1, pM)
-                i += 2
-            else:
-                i = 0
-            counter -= 1
-        return listaPoints
 
     def shiftContour(self, contour, x, y):
         for i, value in enumerate(contour):
             contour[i][0][0] += x
             contour[i][0][1] += y
 
-    def scaleContour(self, contour, scale, decrease=None):
-        M = cv2.moments(contour)
-        contourScaled = contour
-        if M['m00'] != 0:
-            cx = int(M['m10'] / M['m00'])
-            cy = int(M['m01'] / M['m00'])
-            contourNorm = contour - [cx, cy]
-            if decrease == None:
-                contourScaled = contourNorm * scale
-            else:
-                contourScaled = contourNorm / scale
-            contourScaled = contourScaled + [cx, cy]
-            contourScaled = contourScaled.astype(np.int32)
-        return contourScaled
-
-    def generatePolygons(self):
-        contoursListP = self.contoursListDeform
+    def generatePolygon(self, deformContour):
+        res = None
         listPolygonsShapely = []
-        largestContour = self.largestContour(contoursListP)
 
-        for contourObj in contoursListP:
-            cnt = contourObj.contour
-            color = contourObj.color
-            cv2.drawContours(self.image, cnt, -1, color, 3)
-            polygon = []
-            array = cnt
-            startingPoint = (array[0][0][0], array[0][0][1])
-            for pointArray in array:
-                tupla = (pointArray[0][0], pointArray[0][1])
-                if not (pointArray[0][0], pointArray[0][1]) in polygon:
-                    polygon.append(tupla)
-            #polygon.append(startingPoint)
-            poligonoShapely = Polygon(polygon)
-            print("POLYGON VALID:" + str(poligonoShapely.is_valid))
-            print(explain_validity(poligonoShapely))
-            if not poligonoShapely.is_valid:
-                #poligonoShapely = geom_factory(lgeos.GEOSMakeValid(poligonoShapely.__geom__))
-                poligonoShapely = make_valid(poligonoShapely)
-                print("is valid")
-                print(poligonoShapely.is_valid)
-                print(explain_validity(poligonoShapely))
-                print(poligonoShapely)
-                if isinstance(poligonoShapely, MultiPolygon):
-                    ultimo = len(poligonoShapely.geoms)-1
-                    print("ultimo " + str(ultimo))
-                    for i in range(ultimo):
-                        print(poligonoShapely.geoms[i])
-                        listPolygonsShapely.append(poligonoShapely.geoms[i])
-                else:
-                    if isinstance(poligonoShapely,GeometryCollection):
-                        if isinstance(poligonoShapely.geoms[0], MultiPolygon):
-                            for geometry in poligonoShapely.geoms[0]:
-                                if isinstance(geometry,Polygon):
-                                    listPolygonsShapely.append(geometry)
-                                if isinstance(geometry,MultiPolygon):
-                                    for polygon in geometry:
-                                        listPolygonsShapely.append(polygon)
-                        else:
-                            listPolygonsShapely.append(poligonoShapely.geoms[0])
-                    else:
-                        listPolygonsShapely.append(poligonoShapely)
+        cnt = deformContour.contour
+        color = deformContour.color
+        cv2.drawContours(self.image, cnt, -1, color, 3)
+        # Contorno nuevo:
+        centroid = self.findCentroid(cnt)
+        cv2.circle(self.image, centroid, 3, self.cianColor, 3)
+        print("Centroide Nuevo: " + str(centroid))
+        self.centroidList.append(centroid)
+
+        polygon = []
+        startingPoint = (cnt[0][0][0], cnt[0][0][1])
+        for pointArray in cnt:
+            tupla = (pointArray[0][0], pointArray[0][1])
+            if not (pointArray[0][0], pointArray[0][1]) in polygon:
+                polygon.append(tupla)
+        #polygon.append(startingPoint)
+        poligonoShapely = Polygon(polygon)
+        print("POLYGON VALID:" + str(poligonoShapely.is_valid))
+        #print(explain_validity(poligonoShapely))
+        if not poligonoShapely.is_valid:
+            #poligonoShapely = geom_factory(lgeos.GEOSMakeValid(poligonoShapely.__geom__))
+            poligonoShapely = make_valid(poligonoShapely)
+            print("is valid")
+            #print(poligonoShapely.is_valid)
+            #print(explain_validity(poligonoShapely))
+            #print(poligonoShapely)
+            if isinstance(poligonoShapely, MultiPolygon):
+                ultimo = len(poligonoShapely.geoms)-1
+                #print("ultimo " + str(ultimo
+                for i in range(ultimo):
+                    #print(poligonoShapely.geoms[i])
+                    listPolygonsShapely.append(poligonoShapely.geoms[i])
             else:
-                listPolygonsShapely.append(poligonoShapely)
-        print("list polygons shapely")
-        print(listPolygonsShapely)
-        multiPolygon = MultiPolygon(listPolygonsShapely)
-        return (multiPolygon, largestContour.contour)
-
-    def largestContour(self, contoursList):
-        largest = None
-        maximunArea = -1
-        for contour in contoursList:
-            area = contour.contourArea()
-            if area > maximunArea:
-                largest = contour
-                maximunArea = area
-        return largest
+                if isinstance(poligonoShapely,GeometryCollection):
+                    if isinstance(poligonoShapely.geoms[0], MultiPolygon):
+                        for geometry in poligonoShapely.geoms[0]:
+                            if isinstance(geometry,Polygon):
+                                listPolygonsShapely.append(geometry)
+                            if isinstance(geometry,MultiPolygon):
+                                for polygon in geometry:
+                                    listPolygonsShapely.append(polygon)
+                    else:
+                        listPolygonsShapely.append(poligonoShapely.geoms[0])
+                else:
+                    listPolygonsShapely.append(poligonoShapely)
+            res = MultiPolygon(listPolygonsShapely)
+        else:
+            listPolygonsShapely.append(poligonoShapely)
+            res = MultiPolygon(listPolygonsShapely)
+        #print("list polygons shapely")
+        #print(listPolygonsShapely)
+        return res
 
     def intersectBetweenRaysAndPolygon(self, polygons, rays):
         listIntersections = []
@@ -445,11 +380,24 @@ class segmentation(object):
         for i, point in enumerate(pointsDirection):
             ray = Ray(i, pointCentroid, point)
             lineString = LineString([pointCentroid,point])
-            self.multiLineString.append(lineString)
             rays.append(ray)
             self.writeImage(str(i), int(point[0]), int(point[1]), self.blackColor)
-        self.multiLineString = MultiLineString(self.multiLineString)
         return rays
+
+    def calculatePoints(self, listaPoints, num):
+        counter = num
+        i = 0
+        while counter > 0:
+            if i + 1 < len(listaPoints):
+                p1 = listaPoints[i]
+                p2 = listaPoints[i + 1]
+                pM = self.middlePoint(p1, p2)
+                listaPoints.insert(i + 1, pM)
+                i += 2
+            else:
+                i = 0
+            counter -= 1
+        return listaPoints
 
     def writeImage(self, palabra, x, y, color):
         fontFace = cv2.FONT_ITALIC
@@ -499,15 +447,6 @@ class segmentation(object):
 
     def drawPoints(self, intersections):
         for list in intersections:
-            """
-            for intersection in list:
-                point = intersection.intersectionPoint
-                if isinstance(point, Point):
-                    x = point.x
-                    y = point.y
-                    cv2.circle(self.image, (int(x), int(y)), 2, self.yellowColor, 2)
-                    self.writeImage(str(intersection.contourId), int(x), int(y), self.cianColor)
-            """
             for intersect in list:
                 if isinstance(intersect.intersectionPoint, LineString):
                     if not intersect.intersectionPoint.is_empty:
@@ -567,27 +506,17 @@ class segmentation(object):
         distancia = math.sqrt((xB - xA) ** 2 + (yB - yA) ** 2)
         return distancia
 
-    def generarCSV(self, distances, points, rayID):
-        print('\n\n DISTANCES CSV: ')
-        print(len(distances))
-        times = np.array(range(0, len(distances)))
-        # times = np.linspace(0.1, 50.0, len(distances))
-        X = times.reshape(-1, 1)
-        Y = np.array(distances).reshape(-1, 1)
-        csv_arr = []
-        csv_arr.append(["tiempo", "distancia","punto"])
-        for i, value in enumerate(X):
-            arr = []
-            x = X[i]
-            y = Y[i]
-            point = points[i].intersectionPoint
-            arr.append(x[0])
-            arr.append(y[0])
-            arr.append(point)
-            csv_arr.append(arr)
-        filename = 'distanciasRayo' + str(rayID) + '.csv'
-        myFile = open(filename, 'w')
-        with myFile:
-            writer = csv.writer(myFile)
-            writer.writerows(csv_arr)
-        # df = pd.read_csv(filename)s
+    def scaleContour(self, contour, scale, decrease=None):
+        M = cv2.moments(contour)
+        contourScaled = contour
+        if M['m00'] != 0:
+            cx = int(M['m10'] / M['m00'])
+            cy = int(M['m01'] / M['m00'])
+            contourNorm = contour - [cx, cy]
+            if decrease == None:
+                contourScaled = contourNorm * scale
+            else:
+                contourScaled = contourNorm / scale
+            contourScaled = contourScaled + [cx, cy]
+            contourScaled = contourScaled.astype(np.int32)
+        return contourScaled
